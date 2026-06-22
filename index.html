@@ -11,6 +11,8 @@
 <meta name="apple-mobile-web-app-title" content="Kattendienst">
 <link rel="apple-touch-icon" href="./icon.svg">
 <link rel="icon" href="./icon.svg">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
   :root {
     --bg1: #fef6e4;
@@ -293,10 +295,21 @@
     <div class="section-title">🚽 Kattenbakken <span class="pill">3 bakken · vuil na 12u · nood na 24u</span></div>
     <div class="grid" id="litterGrid"></div>
 
-    <footer>Stand wordt lokaal bewaard op dit apparaat · tellingen lopen door, ook als de app dicht is.</footer>
+    <footer><span id="syncStatus">📴 lokaal</span> · tellingen lopen door, ook als de app dicht is.</footer>
   </div>
 
 <script>
+/* ====================== FIREBASE (gedeelde sync) ====================== */
+// Vul deze in met de gegevens van je eigen Firebase-project.
+// Zolang apiKey leeg is, werkt de app gewoon lokaal (zonder sync).
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  appId: ""
+};
+
 /* ====================== CONFIG ====================== */
 const DEFAULT_CONFIG = {
   title: "🐱 Kattendienst 🐱",
@@ -414,6 +427,73 @@ function maybeNotify(key, fireKey, title, body) {
   notify(title, body, key);
 }
 
+/* ====================== FIREBASE SYNC ====================== */
+let DB = null;
+function serializeConfig() {
+  return {
+    title: config.title,
+    feeders: config.feeders.map(f => ({ name: f.name })),
+    litters: config.litters.map(l => ({ name: l.name })),
+    feedTimes: config.feedTimes.map(t => ({ h: t.h, m: t.m })),
+  };
+}
+function applyRemoteConfig(val) {
+  if (!val) return;
+  if (val.title) config.title = val.title;
+  if (Array.isArray(val.feeders)) val.feeders.forEach((f,i)=>{ if(config.feeders[i]&&f&&f.name) config.feeders[i].name=f.name; });
+  if (Array.isArray(val.litters)) val.litters.forEach((l,i)=>{ if(config.litters[i]&&l&&l.name) config.litters[i].name=l.name; });
+  if (Array.isArray(val.feedTimes)) val.feedTimes.forEach((t,i)=>{ if(config.feedTimes[i]&&t){ config.feedTimes[i].h=t.h; config.feedTimes[i].m=t.m; } });
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+}
+function applyRemoteState(val) {
+  if (!val) return;
+  FEEDERS.forEach(f => { if (val[f.id] && val[f.id].filledAt)  state[f.id] = { filledAt: val[f.id].filledAt }; });
+  LITTERS.forEach(l => { if (val[l.id] && val[l.id].cleanedAt) state[l.id] = { cleanedAt: val[l.id].cleanedAt }; });
+  saveState(state);
+}
+function pushAllToDB() {
+  if (!DB) return;
+  const payload = {};
+  FEEDERS.forEach(f => payload[f.id] = { filledAt: state[f.id].filledAt });
+  LITTERS.forEach(l => payload[l.id] = { cleanedAt: state[l.id].cleanedAt });
+  DB.ref("state").set(payload);
+  DB.ref("config").set(serializeConfig());
+}
+function dbSetFeeder(id, filledAt)  { if (DB) DB.ref("state/" + id).set({ filledAt }); }
+function dbSetLitter(id, cleanedAt) { if (DB) DB.ref("state/" + id).set({ cleanedAt }); }
+function dbSetConfig()              { if (DB) DB.ref("config").set(serializeConfig()); }
+
+function setSyncBadge(text) {
+  const el = document.getElementById("syncStatus");
+  if (el) el.textContent = text;
+}
+function initFirebase() {
+  if (!FIREBASE_CONFIG.apiKey || typeof firebase === "undefined") {
+    setSyncBadge("📴 lokaal (geen sync ingesteld)");
+    return;
+  }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    DB = firebase.database();
+
+    DB.ref("state").on("value", snap => {
+      const val = snap.val();
+      if (val) { applyRemoteState(val); render(); }
+      else { pushAllToDB(); } // lege database: eerste keer vullen
+    });
+    DB.ref("config").on("value", snap => {
+      const val = snap.val();
+      if (val) { applyRemoteConfig(val); render(); }
+    });
+    DB.ref(".info/connected").on("value", snap => {
+      setSyncBadge(snap.val() ? "🔄 gedeeld · synchroon op alle apparaten" : "⏳ verbinden…");
+    });
+  } catch (e) {
+    console.log("Firebase init mislukt:", e);
+    setSyncBadge("📴 lokaal (sync-fout)");
+  }
+}
+
 /* ====================== RENDER ====================== */
 function feederTag(level) {
   if (level === "emergency") return `<span class="status-tag" style="background:var(--red)">⚠️ NOOD · leeg</span>`;
@@ -516,18 +596,22 @@ document.addEventListener("click", e => {
   const fb = e.target.closest("[data-feeder]");
   if (fb) {
     const id = fb.dataset.feeder;
-    state[id] = { filledAt: Date.now() };
+    const ts = Date.now();
+    state[id] = { filledAt: ts };
     if (state._notified) { delete state._notified[id]; }
     saveState(state);
+    dbSetFeeder(id, ts);
     render();
     return;
   }
   const lb = e.target.closest("[data-litter]");
   if (lb) {
     const id = lb.dataset.litter;
-    state[id] = { cleanedAt: Date.now() };
+    const ts = Date.now();
+    state[id] = { cleanedAt: ts };
     if (state._notified) { delete state._notified[id]; }
     saveState(state);
+    dbSetLitter(id, ts);
     render();
     return;
   }
@@ -555,6 +639,7 @@ function render() {
 }
 render();
 setInterval(render, 30000); // elke 30s verversen
+initFirebase();
 
 /* ====================== SETTINGS MODAL ====================== */
 const modal = document.getElementById("settingsModal");
@@ -587,6 +672,7 @@ function saveSettings() {
   config.feedTimes[0] = parseTime(document.getElementById("cfg-time1").value, config.feedTimes[0]);
   config.feedTimes[1] = parseTime(document.getElementById("cfg-time2").value, config.feedTimes[1]);
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  dbSetConfig();
   closeSettings();
   render();
 }
