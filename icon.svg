@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="110" fill="#ffe8d6"/>
+  <circle cx="256" cy="270" r="150" fill="#ff7eb6"/>
+  <!-- ears -->
+  <path d="M150 170 L120 70 L210 130 Z" fill="#ff7eb6"/>
+  <path d="M362 170 L392 70 L302 130 Z" fill="#ff7eb6"/>
+  <!-- eyes -->
+  <circle cx="210" cy="250" r="20" fill="#3d3a4e"/>
+  <circle cx="302" cy="250" r="20" fill="#3d3a4e"/>
+  <!-- nose -->
+  <path d="M256 285 l-16 14 h32 Z" fill="#3d3a4e"/>
+  <!-- whiskers -->
+  <g stroke="#3d3a4e" stroke-width="6" stroke-linecap="round">
+    <line x1="240" y1="305" x2="150" y2="295"/>
+    <line x1="240" y1="315" x2="155" y2="330"/>
+    <line x1="272" y1="305" x2="362" y2="295"/>
+    <line x1="272" y1="315" x2="357" y2="330"/>
+  </g>
+</svg>

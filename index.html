@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>🐱 Kattendienst</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#ff7eb6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kattendienst">
+<link rel="apple-touch-icon" href="./icon.svg">
+<link rel="icon" href="./icon.svg">
+<style>
+  :root {
+    --bg1: #fef6e4;
+    --bg2: #ffe8d6;
+    --card: #ffffff;
+    --ink: #3d3a4e;
+    --muted: #8d8a9b;
+    --green: #4caf50;
+    --orange: #ff9800;
+    --red: #e53935;
+    --accent: #ff7eb6;
+    --shadow: 0 8px 24px rgba(110, 90, 120, 0.15);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 24px 16px 64px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: clamp(28px, 6vw, 44px);
+    margin: 0;
+    letter-spacing: -1px;
+  }
+  header p { color: var(--muted); margin: 6px 0 0; font-size: 15px; }
+  .clock { font-weight: 700; color: var(--accent); }
+
+  .wrap { max-width: 1000px; margin: 0 auto; }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    font-weight: 800;
+    margin: 32px 6px 14px;
+  }
+  .section-title .pill {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255,255,255,0.7);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+
+  .grid {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s ease;
+  }
+  .card:hover { transform: translateY(-3px); }
+  .card.alert { animation: pulseAlert 1.4s infinite; }
+  @keyframes pulseAlert {
+    0%,100% { box-shadow: var(--shadow); }
+    50% { box-shadow: 0 0 0 4px rgba(229,57,53,0.35), var(--shadow); }
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .card-head .name { font-weight: 800; font-size: 18px; display:flex; align-items:center; gap:8px;}
+  .emoji { font-size: 26px; }
+
+  .status-tag {
+    font-size: 12px;
+    font-weight: 800;
+    padding: 5px 12px;
+    border-radius: 999px;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  /* ---- Feeder bowls ---- */
+  .bowls {
+    display: flex;
+    gap: 10px;
+    margin: 14px 0 6px;
+  }
+  .bowl {
+    flex: 1;
+    aspect-ratio: 1/1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    border: 3px solid #eee;
+    background: #faf7f2;
+    transition: all 0.3s ease;
+  }
+  .bowl.full {
+    background: radial-gradient(circle at 50% 35%, #ffd9a0, #c98a3a);
+    border-color: #b3742a;
+    box-shadow: inset 0 -4px 8px rgba(0,0,0,0.15);
+  }
+  .bowl.empty { opacity: 0.55; }
+  .feed-count { font-size: 15px; color: var(--muted); margin: 4px 0 14px; }
+  .feed-count b { color: var(--ink); font-size: 17px; }
+  .next-feed { font-size: 13px; color: var(--muted); }
+
+  /* ---- Gauge ---- */
+  .gauge-wrap { display:flex; flex-direction:column; align-items:center; margin: 6px 0 10px;}
+  .gauge { width: 200px; height: 120px; }
+  .gauge-label { text-align:center; margin-top:-8px;}
+  .gauge-label .big { font-size: 26px; font-weight: 800; }
+  .gauge-label .small { font-size: 13px; color: var(--muted); }
+
+  button.action {
+    width: 100%;
+    border: none;
+    border-radius: 14px;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: filter 0.15s ease, transform 0.1s ease;
+  }
+  button.action:active { transform: scale(0.97); }
+  button.feeder-btn { background: linear-gradient(135deg, #ffb347, #ff7b00); }
+  button.litter-btn { background: linear-gradient(135deg, #6dd5ed, #2193b0); }
+  button.action:hover { filter: brightness(1.05); }
+
+  .perm-bar {
+    max-width: 1000px;
+    margin: 0 auto 4px;
+    background: #fff3cd;
+    border: 1px solid #ffe08a;
+    color: #7a5b00;
+    padding: 10px 16px;
+    border-radius: 14px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .perm-bar button {
+    border: none; background: #ffb300; color:#3d3a4e; font-weight:800;
+    padding: 8px 14px; border-radius: 10px; cursor: pointer;
+  }
+
+  .last-reset { font-size: 12px; color: var(--muted); margin-top: 10px; text-align:center;}
+
+  footer { text-align:center; color: var(--muted); font-size: 12px; margin-top: 40px; }
+
+  /* settings */
+  .settings-btn {
+    position: fixed; top: 14px; right: 14px; z-index: 20;
+    border: none; background: rgba(255,255,255,0.85); backdrop-filter: blur(6px);
+    width: 46px; height: 46px; border-radius: 50%; font-size: 22px; cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(40,30,45,0.45); z-index: 30;
+    display: none; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 22px; padding: 22px; width: 100%;
+    max-width: 460px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow);
+  }
+  .modal h2 { margin: 0 0 4px; font-size: 22px; }
+  .modal .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .field { margin-bottom: 14px; }
+  .field label { display:block; font-weight: 700; font-size: 13px; margin-bottom: 5px; }
+  .field input {
+    width: 100%; padding: 11px 12px; border: 2px solid #eee; border-radius: 12px;
+    font-size: 15px; font-family: inherit; color: var(--ink);
+  }
+  .field input:focus { outline: none; border-color: var(--accent); }
+  .time-row { display: flex; gap: 10px; }
+  .time-row .field { flex: 1; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .modal-actions button { flex:1; border:none; border-radius: 14px; padding: 13px; font-weight: 800; font-size: 15px; cursor: pointer; }
+  .btn-save { background: linear-gradient(135deg, #ffb347, #ff7b00); color:#fff; }
+  .btn-cancel { background: #eee; color: var(--ink); }
+  .group-title { font-weight: 800; font-size: 14px; margin: 18px 0 8px; color: var(--accent); }
+</style>
+</head>
+<body>
+  <button class="settings-btn" id="settingsBtn" title="Instellingen">⚙️</button>
+
+  <div class="modal-bg" id="settingsModal">
+    <div class="modal">
+      <h2>⚙️ Instellingen</h2>
+      <div class="sub">Pas namen en voedertijden aan. Wordt op dit apparaat bewaard.</div>
+      <div class="field">
+        <label>Kopje bovenaan</label>
+        <input id="cfg-title" type="text" maxlength="40">
+      </div>
+
+      <div class="group-title">🍽️ Voederbakken</div>
+      <div class="field"><label>Naam bak 1</label><input id="cfg-feeder1" type="text" maxlength="30"></div>
+      <div class="field"><label>Naam bak 2</label><input id="cfg-feeder2" type="text" maxlength="30"></div>
+      <div class="time-row">
+        <div class="field"><label>Ochtendvoeding</label><input id="cfg-time1" type="time"></div>
+        <div class="field"><label>Avondvoeding</label><input id="cfg-time2" type="time"></div>
+      </div>
+
+      <div class="group-title">🚽 Kattenbakken</div>
+      <div class="field"><label>Naam bak 1</label><input id="cfg-litter1" type="text" maxlength="30"></div>
+      <div class="field"><label>Naam bak 2</label><input id="cfg-litter2" type="text" maxlength="30"></div>
+      <div class="field"><label>Naam bak 3</label><input id="cfg-litter3" type="text" maxlength="30"></div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" id="cfgCancel">Annuleren</button>
+        <button class="btn-save" id="cfgSave">Opslaan</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <header>
+      <h1 id="appTitle">🐱 Kattendienst 🐱</h1>
+      <p>Het is nu <span class="clock" id="clock">--:--</span> · alles voor onze twee kapoenen</p>
+    </header>
+
+    <div class="perm-bar" id="permBar" style="display:none;">
+      <span>🔔 Zet meldingen aan zodat je een seintje krijgt bij (bijna) lege bakken.</span>
+      <button id="permBtn">Meldingen aanzetten</button>
+    </div>
+
+    <!-- FEEDERS -->
+    <div class="section-title">🍽️ Voederbakken <span class="pill">2 bakken · 4 voedingen elk · 07:00 &amp; 18:15</span></div>
+    <div class="grid" id="feederGrid"></div>
+
+    <!-- LITTER -->
+    <div class="section-title">🚽 Kattenbakken <span class="pill">3 bakken · vuil na 12u · nood na 24u</span></div>
+    <div class="grid" id="litterGrid"></div>
+
+    <footer>Stand wordt lokaal bewaard op dit apparaat · tellingen lopen door, ook als de app dicht is.</footer>
+  </div>
+
+<script>
+/* ====================== CONFIG ====================== */
+const DEFAULT_CONFIG = {
+  title: "🐱 Kattendienst 🐱",
+  feeders: [
+    { id: "feeder1", name: "Voederbak 1", emoji: "🥣" },
+    { id: "feeder2", name: "Voederbak 2", emoji: "🍲" },
+  ],
+  litters: [
+    { id: "litter1", name: "Kattenbak 1", emoji: "🟫" },
+    { id: "litter2", name: "Kattenbak 2", emoji: "🟫" },
+    { id: "litter3", name: "Kattenbak 3", emoji: "🟫" },
+  ],
+  feedTimes: [ {h:7,m:0}, {h:18,m:15} ], // ochtend & avond
+};
+const CONFIG_KEY = "kattendienst_config_v1";
+function loadConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CONFIG_KEY));
+    if (!saved) return structuredClone(DEFAULT_CONFIG);
+    const c = structuredClone(DEFAULT_CONFIG);
+    if (saved.title) c.title = saved.title;
+    if (Array.isArray(saved.feeders)) saved.feeders.forEach((f,i)=>{ if(c.feeders[i]&&f.name) c.feeders[i].name=f.name; });
+    if (Array.isArray(saved.litters)) saved.litters.forEach((l,i)=>{ if(c.litters[i]&&l.name) c.litters[i].name=l.name; });
+    if (Array.isArray(saved.feedTimes)) saved.feedTimes.forEach((t,i)=>{ if(c.feedTimes[i]&&t) c.feedTimes[i]={h:t.h,m:t.m}; });
+    return c;
+  } catch { return structuredClone(DEFAULT_CONFIG); }
+}
+let config = loadConfig();
+const FEEDERS = config.feeders;
+const LITTERS = config.litters;
+const FEED_TIMES = config.feedTimes;
+const MAX_FEEDS = 4;
+const LITTER_DIRTY_HOURS = 12;
+const LITTER_EMERGENCY_HOURS = 24;
+
+/* ====================== STATE ====================== */
+const STORE_KEY = "kattendienst_v1";
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveState(s) { localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
+
+let state = loadState();
+// initialiseer ontbrekende velden met "nu"
+function ensureInit() {
+  const now = Date.now();
+  FEEDERS.forEach(f => { if (!state[f.id]) state[f.id] = { filledAt: now }; });
+  LITTERS.forEach(l => { if (!state[l.id]) state[l.id] = { cleanedAt: now }; });
+  if (!state._notified) state._notified = {};
+  saveState(state);
+}
+ensureInit();
+
+/* ====================== FEEDER LOGIC ====================== */
+// Tel hoeveel geplande voedertijden (07:00 / 18:15) verstreken zijn sinds 'since'.
+function feedsUsedSince(sinceMs, nowMs) {
+  let count = 0;
+  // loop dag voor dag vanaf de dag van 'since' tot vandaag
+  const since = new Date(sinceMs);
+  const day = new Date(since.getFullYear(), since.getMonth(), since.getDate());
+  const now = new Date(nowMs);
+  while (day.getTime() <= nowMs + 24*3600*1000) {
+    for (const t of FEED_TIMES) {
+      const slot = new Date(day.getFullYear(), day.getMonth(), day.getDate(), t.h, t.m).getTime();
+      if (slot > sinceMs && slot <= nowMs) count++;
+    }
+    day.setDate(day.getDate() + 1);
+  }
+  return count;
+}
+function nextFeedTime(nowMs) {
+  const now = new Date(nowMs);
+  for (let d = 0; d < 2; d++) {
+    for (const t of FEED_TIMES) {
+      const slot = new Date(now.getFullYear(), now.getMonth(), now.getDate()+d, t.h, t.m).getTime();
+      if (slot > nowMs) return slot;
+    }
+  }
+  return null;
+}
+function feederStatus(f, nowMs) {
+  const used = Math.min(MAX_FEEDS, feedsUsedSince(state[f.id].filledAt, nowMs));
+  const left = MAX_FEEDS - used;
+  let level = "ok";
+  if (left <= 0) level = "emergency";
+  else if (left === 1) level = "low";
+  return { used, left, level };
+}
+
+/* ====================== LITTER LOGIC ====================== */
+function litterStatus(l, nowMs) {
+  const hours = (nowMs - state[l.id].cleanedAt) / 3600000;
+  let level = "ok";
+  if (hours >= LITTER_EMERGENCY_HOURS) level = "emergency";
+  else if (hours >= LITTER_DIRTY_HOURS) level = "dirty";
+  const frac = Math.max(0, Math.min(1, hours / LITTER_EMERGENCY_HOURS));
+  return { hours, level, frac };
+}
+
+/* ====================== NOTIFICATIONS ====================== */
+function notify(title, body, tag) {
+  // visueel altijd; systeemmelding indien toegestaan
+  if ("Notification" in window && Notification.permission === "granted") {
+    try { new Notification(title, { body, tag, icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Ctext y='52' font-size='52'%3E🐱%3C/text%3E%3C/svg%3E" }); }
+    catch(e){}
+  }
+}
+// stuur melding maximaal 1x per "toestand" (reset bij vullen/verschonen)
+function maybeNotify(key, fireKey, title, body) {
+  if (!state._notified) state._notified = {};
+  if (state._notified[key] === fireKey) return;
+  state._notified[key] = fireKey;
+  saveState(state);
+  notify(title, body, key);
+}
+
+/* ====================== RENDER ====================== */
+function feederTag(level) {
+  if (level === "emergency") return `<span class="status-tag" style="background:var(--red)">⚠️ NOOD · leeg</span>`;
+  if (level === "low") return `<span class="status-tag" style="background:var(--orange)">Bijna op</span>`;
+  return `<span class="status-tag" style="background:var(--green)">Prima</span>`;
+}
+function renderFeeders(nowMs) {
+  const grid = document.getElementById("feederGrid");
+  grid.innerHTML = "";
+  FEEDERS.forEach(f => {
+    const s = feederStatus(f, nowMs);
+    const bowls = Array.from({length: MAX_FEEDS}, (_,i) =>
+      `<div class="bowl ${i < s.left ? 'full' : 'empty'}">${i < s.left ? '🍖' : ''}</div>`).join("");
+    const nft = nextFeedTime(nowMs);
+    const nftStr = nft ? new Date(nft).toLocaleString('nl-NL',{weekday:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+    const card = document.createElement("div");
+    card.className = "card" + (s.level === "emergency" ? " alert" : "");
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="name"><span class="emoji">${f.emoji}</span>${f.name}</span>
+        ${feederTag(s.level)}
+      </div>
+      <div class="bowls">${bowls}</div>
+      <div class="feed-count"><b>${s.left}</b> / ${MAX_FEEDS} voedingen over</div>
+      <div class="next-feed">⏭️ Volgende voeding: ${nftStr}</div>
+      <button class="action feeder-btn" data-feeder="${f.id}">✅ Bakje opnieuw gevuld (4 vol)</button>
+      <div class="last-reset">Gevuld: ${new Date(state[f.id].filledAt).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+    `;
+    grid.appendChild(card);
+
+    // meldingen
+    if (s.level === "low")        maybeNotify(f.id, "low",  "🍽️ Bijna leeg", `${f.name}: nog maar 1 voeding over. Tijd om bij te vullen!`);
+    if (s.level === "emergency")  maybeNotify(f.id, "empty","🚨 NOOD: bak leeg", `${f.name} is helemaal leeg! Vul direct bij.`);
+  });
+}
+
+function gaugeSVG(frac, level) {
+  // semicirkel speedometer, 180° van links (groen) naar rechts (rood)
+  const cx=100, cy=100, r=80;
+  const angle = Math.PI - frac * Math.PI; // 0 -> links(PI), 1 -> rechts(0)
+  const nx = cx + r*0.78*Math.cos(angle);
+  const ny = cy - r*0.78*Math.sin(angle);
+  // boog helpers
+  function arc(a0, a1, color) {
+    const x0=cx+r*Math.cos(a0), y0=cy-r*Math.sin(a0);
+    const x1=cx+r*Math.cos(a1), y1=cy-r*Math.sin(a1);
+    const large = (a0-a1) > Math.PI ? 1 : 0;
+    return `<path d="M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}" stroke="${color}" stroke-width="16" fill="none" stroke-linecap="round"/>`;
+  }
+  const P=Math.PI;
+  // 0-12u groen (PI..2/3PI), 12-18 oranje, 18-24 rood. Map uur->hoek
+  const a = h => P - (h/24)*P;
+  const needleColor = level==="emergency" ? "var(--red)" : level==="dirty" ? "var(--orange)" : "var(--green)";
+  return `<svg class="gauge" viewBox="0 0 200 115">
+    ${arc(a(0), a(12), 'var(--green)')}
+    ${arc(a(12), a(18), 'var(--orange)')}
+    ${arc(a(18), a(24), 'var(--red)')}
+    <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${needleColor}" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="8" fill="${needleColor}"/>
+  </svg>`;
+}
+function litterTag(level) {
+  if (level === "emergency") return `<span class="status-tag" style="background:var(--red)">⚠️ NOOD · verschonen!</span>`;
+  if (level === "dirty") return `<span class="status-tag" style="background:var(--orange)">Vuil</span>`;
+  return `<span class="status-tag" style="background:var(--green)">Schoon</span>`;
+}
+function renderLitters(nowMs) {
+  const grid = document.getElementById("litterGrid");
+  grid.innerHTML = "";
+  LITTERS.forEach(l => {
+    const s = litterStatus(l, nowMs);
+    const h = Math.floor(s.hours);
+    const m = Math.floor((s.hours - h) * 60);
+    const card = document.createElement("div");
+    card.className = "card" + (s.level === "emergency" ? " alert" : "");
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="name"><span class="emoji">🧺</span>${l.name}</span>
+        ${litterTag(s.level)}
+      </div>
+      <div class="gauge-wrap">
+        ${gaugeSVG(s.frac, s.level)}
+        <div class="gauge-label">
+          <div class="big">${h}u ${m}m</div>
+          <div class="small">sinds laatste verschoning · nood bij 24u</div>
+        </div>
+      </div>
+      <button class="action litter-btn" data-litter="${l.id}">🧽 Verschoond (schoon!)</button>
+      <div class="last-reset">Verschoond: ${new Date(state[l.id].cleanedAt).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+    `;
+    grid.appendChild(card);
+
+    if (s.level === "dirty")      maybeNotify(l.id, "dirty",     "🚽 Bak is vuil", `${l.name} is na 12 uur vuil. Verschonen wanneer het uitkomt.`);
+    if (s.level === "emergency")  maybeNotify(l.id, "emergency", "🚨 NOOD: verschoon nu", `${l.name} is 24 uur oud en moet direct verschoond worden!`);
+  });
+}
+
+/* ====================== ACTIONS ====================== */
+document.addEventListener("click", e => {
+  const fb = e.target.closest("[data-feeder]");
+  if (fb) {
+    const id = fb.dataset.feeder;
+    state[id] = { filledAt: Date.now() };
+    if (state._notified) { delete state._notified[id]; }
+    saveState(state);
+    render();
+    return;
+  }
+  const lb = e.target.closest("[data-litter]");
+  if (lb) {
+    const id = lb.dataset.litter;
+    state[id] = { cleanedAt: Date.now() };
+    if (state._notified) { delete state._notified[id]; }
+    saveState(state);
+    render();
+    return;
+  }
+});
+
+/* ====================== NOTIFICATION PERMISSION ====================== */
+function refreshPermBar() {
+  const bar = document.getElementById("permBar");
+  if (!("Notification" in window)) { bar.style.display = "none"; return; }
+  bar.style.display = (Notification.permission === "default") ? "flex" : "none";
+}
+document.getElementById("permBtn").addEventListener("click", () => {
+  Notification.requestPermission().then(refreshPermBar);
+});
+
+/* ====================== LOOP ====================== */
+function render() {
+  const now = Date.now();
+  document.getElementById("appTitle").textContent = config.title;
+  document.getElementById("clock").textContent =
+    new Date(now).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+  renderFeeders(now);
+  renderLitters(now);
+  refreshPermBar();
+}
+render();
+setInterval(render, 30000); // elke 30s verversen
+
+/* ====================== SETTINGS MODAL ====================== */
+const modal = document.getElementById("settingsModal");
+function pad(n){ return String(n).padStart(2,"0"); }
+function openSettings() {
+  document.getElementById("cfg-title").value = config.title;
+  document.getElementById("cfg-feeder1").value = config.feeders[0].name;
+  document.getElementById("cfg-feeder2").value = config.feeders[1].name;
+  document.getElementById("cfg-litter1").value = config.litters[0].name;
+  document.getElementById("cfg-litter2").value = config.litters[1].name;
+  document.getElementById("cfg-litter3").value = config.litters[2].name;
+  document.getElementById("cfg-time1").value = pad(config.feedTimes[0].h)+":"+pad(config.feedTimes[0].m);
+  document.getElementById("cfg-time2").value = pad(config.feedTimes[1].h)+":"+pad(config.feedTimes[1].m);
+  modal.classList.add("open");
+}
+function closeSettings() { modal.classList.remove("open"); }
+function parseTime(v, fallback) {
+  if (!v || !/^\d{1,2}:\d{2}$/.test(v)) return fallback;
+  const [h,m] = v.split(":").map(Number);
+  return { h, m };
+}
+function saveSettings() {
+  const t = (id, fb) => (document.getElementById(id).value.trim() || fb);
+  config.title = t("cfg-title", DEFAULT_CONFIG.title);
+  config.feeders[0].name = t("cfg-feeder1", "Voederbak 1");
+  config.feeders[1].name = t("cfg-feeder2", "Voederbak 2");
+  config.litters[0].name = t("cfg-litter1", "Kattenbak 1");
+  config.litters[1].name = t("cfg-litter2", "Kattenbak 2");
+  config.litters[2].name = t("cfg-litter3", "Kattenbak 3");
+  config.feedTimes[0] = parseTime(document.getElementById("cfg-time1").value, config.feedTimes[0]);
+  config.feedTimes[1] = parseTime(document.getElementById("cfg-time2").value, config.feedTimes[1]);
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  closeSettings();
+  render();
+}
+document.getElementById("settingsBtn").addEventListener("click", openSettings);
+document.getElementById("cfgCancel").addEventListener("click", closeSettings);
+document.getElementById("cfgSave").addEventListener("click", saveSettings);
+modal.addEventListener("click", e => { if (e.target === modal) closeSettings(); });
+
+/* ====================== SERVICE WORKER (PWA) ====================== */
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(err => console.log("SW niet geregistreerd:", err));
+  });
+}
+</script>
+</body>
+</html>
