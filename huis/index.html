@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+<title>Spontaan sociaal 🏠</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#2b2440">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Spontaan sociaal">
+<link rel="apple-touch-icon" href="./icon.svg">
+<link rel="icon" href="./icon.svg">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --bg1:#2b2440; --bg2:#1b1730;
+    --card:#ffffff; --ink:#2c2740; --muted:#8b87a0;
+    --m1:#c62828; --m1b:#ff5a5a;
+    --m2:#fb8c00; --m2b:#ffb74d;
+    --m3:#ffd000; --m3b:#fff176;
+    --m4:#3fb950; --m4b:#7ee787;
+    --accent:#ff7eb6;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    background:radial-gradient(120% 90% at 50% 0%, var(--bg1), var(--bg2));
+    color:#fff; min-height:100vh;
+    padding:max(10px,env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width:920px; margin:0 auto; }
+
+  /* ---------- top bar ---------- */
+  .topbar { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .topbar h1 { font-size:clamp(20px,5vw,30px); margin:0; letter-spacing:-.5px; }
+  .topbar h1 .em { filter:drop-shadow(0 2px 4px rgba(0,0,0,.3)); }
+  .topbar .count { font-size:12px; color:#cfcbe0; font-weight:600; }
+  .me-chip {
+    display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.15); padding:5px 10px 5px 5px; border-radius:999px;
+    cursor:pointer; backdrop-filter:blur(6px);
+  }
+  .me-chip .mini { width:34px; height:34px; border-radius:50%; overflow:hidden; flex:none; background:rgba(255,255,255,.15); }
+  .me-chip .mini svg { width:100%; height:100%; display:block; }
+  .me-chip .nm { font-size:13px; font-weight:700; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .icon-btn {
+    border:none; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15);
+    color:#fff; width:40px; height:40px; border-radius:12px; font-size:18px; cursor:pointer; flex:none;
+  }
+  .icon-btn:active { transform:scale(.94); }
+
+  /* ---------- stage / room ---------- */
+  .stage {
+    position:relative; width:100%; aspect-ratio:800/500;
+    border-radius:24px; overflow:hidden; box-shadow:var(--shadow); background:#3a2f57;
+  }
+  .stage svg.room { position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  .avatar {
+    position:absolute; width:13.5%; max-width:130px;
+    transform:translate(-50%,-50%) scale(var(--scale,1));
+    transition:left 3.4s cubic-bezier(.37,.02,.4,1), top 3.4s cubic-bezier(.37,.02,.4,1), transform .4s ease;
+    cursor:pointer; will-change:left,top,transform;
+  }
+  .avatar .shadow {
+    position:absolute; left:50%; bottom:-3%; width:52%; height:8%;
+    transform:translateX(-50%); background:rgba(0,0,0,.28); border-radius:50%; filter:blur(2px); z-index:0;
+  }
+  .facer { position:relative; z-index:1; transform:scaleX(var(--face,1)); transition:transform .2s ease; }
+  .inner { transform-origin:bottom center; animation:idle 3.8s ease-in-out infinite; }
+  .inner svg { width:100%; height:auto; display:block; filter:drop-shadow(0 5px 5px rgba(0,0,0,.18)); }
+  @keyframes idle {
+    0%,100% { transform:translateY(0) rotate(0deg); }
+    25% { transform:translateY(-2px) rotate(-1.2deg); }
+    75% { transform:translateY(-2px) rotate(1.2deg); }
+  }
+  .avatar.walking .inner { animation:walk .42s ease-in-out infinite; }
+  @keyframes walk {
+    0%,100% { transform:translateY(0) rotate(-2.5deg) scaleY(.99); }
+    50% { transform:translateY(-6px) rotate(2.5deg) scaleY(1.02); }
+  }
+
+  /* plumbob (Sims-bolletje) */
+  .plumb {
+    position:absolute; left:50%; top:-12%; width:26%; aspect-ratio:1/1;
+    transform:translateX(-50%); animation:floaty 2.8s ease-in-out infinite; z-index:3;
+  }
+  @keyframes floaty { 0%,100%{ transform:translate(-50%,0) } 50%{ transform:translate(-50%,-5px) } }
+  .plumb .gem {
+    width:100%; height:100%; border-radius:22% / 14%; transform:rotate(45deg); position:relative;
+    box-shadow:0 0 16px var(--glow), 0 0 4px var(--glow);
+    background:linear-gradient(135deg, var(--glow), var(--col)); border:2px solid rgba(255,255,255,.55);
+  }
+  .plumb .pf {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:clamp(10px,2vw,15px);
+  }
+  .nametag {
+    position:absolute; left:50%; bottom:-8px; transform:translateX(-50%);
+    background:rgba(20,16,34,.8); color:#fff; font-size:clamp(9px,1.8vw,12px); font-weight:700;
+    padding:2px 8px; border-radius:999px; white-space:nowrap; backdrop-filter:blur(4px);
+    border:1px solid rgba(255,255,255,.12); z-index:3;
+  }
+  .avatar.stale .facer { filter:grayscale(.55) opacity(.6); }
+
+  /* ---------- legend ---------- */
+  .legend { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
+  .legend .row {
+    display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:9px 11px; font-size:13px;
+  }
+  .legend .dot { width:18px; height:18px; border-radius:50%; flex:none; box-shadow:0 0 8px currentColor; }
+  .sync { text-align:center; color:#a8a4bd; font-size:11px; margin-top:12px; }
+
+  /* ---------- modal ---------- */
+  .modal-bg {
+    position:fixed; inset:0; background:rgba(15,11,28,.6); backdrop-filter:blur(4px);
+    z-index:40; display:none; align-items:center; justify-content:center; padding:16px;
+  }
+  .modal-bg.open { display:flex; }
+  .modal {
+    background:var(--card); color:var(--ink); border-radius:24px; padding:22px;
+    width:100%; max-width:460px; max-height:92vh; overflow-y:auto; box-shadow:var(--shadow);
+  }
+  .modal h2 { margin:0 0 4px; font-size:23px; }
+  .modal .sub { color:var(--muted); font-size:13px; margin-bottom:16px; line-height:1.4; }
+  .field { margin-bottom:16px; }
+  .field > label { display:block; font-weight:800; font-size:13px; margin-bottom:8px; }
+  .field input[type=text] {
+    width:100%; padding:13px 14px; border:2px solid #ece9f2; border-radius:14px;
+    font-size:16px; font-family:inherit; color:var(--ink);
+  }
+  .field input:focus { outline:none; border-color:var(--accent); }
+
+  .preview { display:flex; flex-direction:column; align-items:center; margin:2px 0 16px; }
+  .preview .pv {
+    width:130px; height:130px; border-radius:50%; overflow:hidden; background:#f3f1f7;
+    border:3px solid #efedf4; box-shadow:0 6px 16px rgba(0,0,0,.1);
+  }
+  .preview .pv svg { width:100%; height:100%; display:block; }
+  .reroll {
+    margin-top:12px; border:none; background:#efedf4; color:var(--ink); font-weight:800;
+    padding:10px 18px; border-radius:999px; font-size:14px; cursor:pointer;
+  }
+  .reroll:active { transform:scale(.96); }
+
+  .opt-row { display:flex; flex-wrap:wrap; gap:9px; }
+  .swatch { width:34px; height:34px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:transform .1s; }
+  .swatch.sel { border-color:var(--ink); transform:scale(1.12); }
+  .chip {
+    border:2px solid #ece9f2; background:#faf9fc; color:var(--ink); border-radius:12px;
+    padding:8px 12px; font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .chip.sel { border-color:var(--accent); background:#fff0f7; }
+
+  /* mood choices */
+  .moods { display:grid; gap:10px; }
+  .moodbtn {
+    display:flex; align-items:center; gap:14px; width:100%; border:none; cursor:pointer;
+    border-radius:16px; padding:14px 16px; color:#fff; font-size:16px; font-weight:800;
+    text-align:left; box-shadow:0 4px 12px rgba(0,0,0,.12); transition:transform .1s; position:relative;
+  }
+  .moodbtn:active { transform:scale(.98); }
+  .moodbtn .be { font-size:26px; }
+  .moodbtn .bt small { display:block; font-weight:600; font-size:12px; opacity:.9; }
+  .moodbtn.sel::after { content:"✓"; position:absolute; right:16px; font-size:20px; }
+
+  .modal-actions { display:flex; gap:10px; margin-top:18px; }
+  .modal-actions button { flex:1; border:none; border-radius:15px; padding:14px; font-weight:800; font-size:15px; cursor:pointer; }
+  .btn-primary { background:linear-gradient(135deg,#ff9ccb,#ff6fae); color:#fff; }
+  .btn-ghost { background:#efedf4; color:var(--ink); }
+  .danger-link { background:none; border:none; color:#c62828; font-weight:700; font-size:13px; cursor:pointer; margin-top:10px; padding:6px; width:100%; }
+
+  .toast {
+    position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(20px);
+    background:rgba(20,16,34,.92); color:#fff; padding:10px 16px 10px 12px; border-radius:16px;
+    box-shadow:var(--shadow); z-index:50; opacity:0; pointer-events:none; transition:.25s;
+    display:flex; align-items:center; gap:12px; max-width:88vw; border:1px solid rgba(255,255,255,.12);
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast .tav { width:40px; height:40px; border-radius:50%; overflow:hidden; flex:none; background:rgba(255,255,255,.12); }
+  .toast .tav svg { width:100%; height:100%; }
+  .toast .tt b { display:block; font-size:15px; }
+  .toast .tt small { color:#bbb6cf; font-size:12px; }
+  .toast .tdot { width:12px; height:12px; border-radius:50%; display:inline-block; vertical-align:middle; margin-right:5px; box-shadow:0 0 6px currentColor; }
+
+  @media (max-width:600px){
+    .legend { grid-template-columns:1fr; }
+    .me-chip .nm { max-width:60px; }
+    .avatar { width:17%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div style="flex:1;min-width:0">
+      <h1><span class="em">🏠</span> Spontaan sociaal</h1>
+      <div class="count" id="count">wie is er thuis…</div>
+    </div>
+    <div class="me-chip" id="meChip" title="Verander je stand">
+      <span class="mini" id="meMini"></span>
+      <span class="nm" id="meName">—</span>
+    </div>
+    <button class="icon-btn" id="profileBtn" title="Profiel">👤</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <svg class="room" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <rect x="0" y="0" width="800" height="320" fill="#e9d9c3"/>
+      <rect x="0" y="0" width="800" height="320" fill="url(#wallShade)"/>
+      <path d="M0 320 L800 320 L800 500 L0 500 Z" fill="#c79a6b"/>
+      <g stroke="#b2855a" stroke-width="2" opacity="0.5">
+        <line x1="0" y1="360" x2="800" y2="360"/>
+        <line x1="0" y1="410" x2="800" y2="410"/>
+        <line x1="0" y1="465" x2="800" y2="465"/>
+      </g>
+      <rect x="0" y="312" width="800" height="12" fill="#d9c4a6"/>
+      <defs>
+        <linearGradient id="wallShade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ffffff" stop-opacity="0.25"/>
+          <stop offset="1" stop-color="#000000" stop-opacity="0.06"/>
+        </linearGradient>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#9fd3ff"/><stop offset="1" stop-color="#ffe7b3"/>
+        </linearGradient>
+      </defs>
+      <g>
+        <rect x="80" y="60" width="150" height="120" rx="8" fill="#7a5a36"/>
+        <rect x="90" y="70" width="130" height="100" rx="4" fill="url(#sky)"/>
+        <circle cx="195" cy="98" r="14" fill="#fff3c4" opacity="0.9"/>
+        <line x1="155" y1="70" x2="155" y2="170" stroke="#7a5a36" stroke-width="6"/>
+        <line x1="90" y1="120" x2="220" y2="120" stroke="#7a5a36" stroke-width="6"/>
+      </g>
+      <rect x="560" y="80" width="70" height="54" rx="4" fill="#fff" stroke="#7a5a36" stroke-width="5"/>
+      <path d="M566 128 l16 -24 l12 14 l10 -16 l16 26 z" fill="#9ad29a"/>
+      <rect x="650" y="92" width="48" height="60" rx="4" fill="#fff" stroke="#7a5a36" stroke-width="5"/>
+      <circle cx="674" cy="118" r="14" fill="#ffcf6b"/>
+      <line x1="400" y1="0" x2="400" y2="40" stroke="#5a4a2f" stroke-width="3"/>
+      <path d="M376 40 L424 40 L414 66 L386 66 Z" fill="#3a3350"/>
+      <circle cx="400" cy="70" r="9" fill="#ffe9a8"/>
+      <rect x="612" y="250" width="188" height="22" rx="4" fill="#8a6b46"/>
+      <rect x="620" y="272" width="180" height="70" fill="#a9854f"/>
+      <rect x="640" y="288" width="46" height="42" rx="4" fill="#8a6b46"/>
+      <rect x="700" y="288" width="46" height="42" rx="4" fill="#8a6b46"/>
+      <circle cx="690" cy="262" r="6" fill="#cfcad8"/>
+      <rect x="752" y="226" width="26" height="26" rx="3" fill="#403a55"/>
+      <g>
+        <rect x="70" y="250" width="300" height="70" rx="22" fill="#5b6fae"/>
+        <rect x="70" y="222" width="300" height="58" rx="20" fill="#6c80c0"/>
+        <rect x="64" y="232" width="34" height="96" rx="16" fill="#54669e"/>
+        <rect x="342" y="232" width="34" height="96" rx="16" fill="#54669e"/>
+        <rect x="120" y="232" width="70" height="44" rx="12" fill="#88a0e0"/>
+        <rect x="250" y="232" width="70" height="44" rx="12" fill="#88a0e0"/>
+        <rect x="86" y="318" width="18" height="22" rx="4" fill="#3f4d77"/>
+        <rect x="342" y="318" width="18" height="22" rx="4" fill="#3f4d77"/>
+      </g>
+      <g>
+        <rect x="470" y="258" width="120" height="64" rx="20" fill="#c46a5a"/>
+        <rect x="470" y="232" width="120" height="52" rx="18" fill="#d6796a"/>
+        <rect x="462" y="244" width="28" height="84" rx="14" fill="#b85e4f"/>
+        <rect x="570" y="244" width="28" height="84" rx="14" fill="#b85e4f"/>
+      </g>
+      <ellipse cx="300" cy="408" rx="120" ry="26" fill="#7a5a36"/>
+      <ellipse cx="300" cy="400" rx="120" ry="26" fill="#9a7548"/>
+      <rect x="270" y="388" width="22" height="10" rx="3" fill="#5a4a2f"/>
+      <ellipse cx="360" cy="450" rx="300" ry="46" fill="#d98c8c" opacity="0.5"/>
+      <rect x="36" y="356" width="40" height="40" rx="6" fill="#b9774a"/>
+      <path d="M56 356 C30 320 40 300 52 290 C50 314 60 330 56 356" fill="#5fa05f"/>
+      <path d="M56 356 C82 322 78 296 70 286 C64 312 56 330 56 356" fill="#6fb96f"/>
+      <path d="M56 356 C56 318 56 300 56 292" stroke="#4f8f4f" stroke-width="4" fill="none"/>
+      <line x1="430" y1="320" x2="430" y2="200" stroke="#5a4a2f" stroke-width="5"/>
+      <path d="M410 200 L450 200 L442 168 L418 168 Z" fill="#ffe9a8"/>
+      <ellipse cx="430" cy="322" rx="20" ry="6" fill="#5a4a2f"/>
+    </svg>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <div class="sync" id="sync">📴 lokaal</div>
+</div>
+
+<!-- ===== Onboarding / avatar-creator ===== -->
+<div class="modal-bg" id="profileModal">
+  <div class="modal">
+    <h2 id="pmTitle">Welkom thuis! 👋</h2>
+    <div class="sub" id="pmSub">Maak je personage. Je vrienden zien jou straks in het huis.</div>
+
+    <div class="preview">
+      <div class="pv" id="avPreview"></div>
+      <button class="reroll" id="rerollBtn">🎲 Verras me</button>
+    </div>
+
+    <div class="field">
+      <label>Je naam</label>
+      <input id="inpName" type="text" maxlength="18" placeholder="bijv. Sem" autocomplete="off">
+    </div>
+    <div class="field"><label>Huidskleur</label><div class="opt-row" id="optSkin"></div></div>
+    <div class="field"><label>Kapsel</label><div class="opt-row" id="optTop"></div></div>
+    <div class="field"><label>Haarkleur</label><div class="opt-row" id="optHair"></div></div>
+    <div class="field"><label>Kleding</label><div class="opt-row" id="optClothes"></div></div>
+    <div class="field"><label>Bril</label><div class="opt-row" id="optAcc"></div></div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="pmCancel">Annuleren</button>
+      <button class="btn-primary" id="pmSave">Naar het huis →</button>
+    </div>
+    <button class="danger-link" id="pmLogout" style="display:none">Uitloggen / personage verwijderen</button>
+  </div>
+</div>
+
+<!-- ===== Stand kiezen ===== -->
+<div class="modal-bg" id="moodModal">
+  <div class="modal">
+    <h2>Hoe voel je je?</h2>
+    <div class="sub">Kies je stand. Je vrienden zien dit meteen boven je hoofd — en het verandert je gezichtsuitdrukking.</div>
+    <div class="moods" id="moodList"></div>
+    <div class="modal-actions"><button class="btn-ghost" id="moodCancel">Sluiten</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <span class="tav" id="toastAv"></span>
+  <div class="tt"><b id="toastName"></b><small id="toastStatus"></small></div>
+</div>
+
+<script>
+/* ===================== FIREBASE ===================== */
+const FIREBASE_CONFIG = {
+  apiKey: "", authDomain: "", databaseURL: "",
+  projectId: "", storageBucket: "", messagingSenderId: "", appId: ""
+};
+
+/* ===================== STANDEN ===================== */
+const MOODS = {
+  1:{ id:1, col:"var(--m1)", glow:"var(--m1b)", hex:"#c62828", emoji:"🚫", label:"Druk · liever met rust", short:"Met rust" },
+  2:{ id:2, col:"var(--m2)", glow:"var(--m2b)", hex:"#fb8c00", emoji:"😌", label:"Open voor iets rustigs",  short:"Iets rustigs" },
+  3:{ id:3, col:"var(--m3)", glow:"var(--m3b)", hex:"#ffd000", emoji:"🙂", label:"Wel zin om wat te doen",  short:"Wel zin" },
+  4:{ id:4, col:"var(--m4)", glow:"var(--m4b)", hex:"#3fb950", emoji:"🤩", label:"Ik wil graag iets doen!", short:"Laten we gaan!" },
+};
+const MOOD_ORDER = [4,3,2,1];
+/* gezichtsuitdrukking per stand (avataaars) */
+const EXPR = {
+  1:{ eyes:"side",     eyebrows:"sadConcernedNatural",  mouth:"serious" },
+  2:{ eyes:"default",  eyebrows:"defaultNatural",       mouth:"twinkle" },
+  3:{ eyes:"happy",    eyebrows:"defaultNatural",       mouth:"smile"   },
+  4:{ eyes:"happy",    eyebrows:"raisedExcitedNatural", mouth:"smile"   },
+};
+
+/* ===================== AVATAR-OPTIES (avataaars) ===================== */
+const O = {
+  skin:   ["ffdbb4","edb98a","fd9841","d08b5b","ae5d29","614335","f8d25c"],
+  top:    ["shortFlat","shortWaved","shortCurly","theCaesar","sides","dreads01","curly","bun","longButNotTooLong","straight01","bob","fro","hat"],
+  hair:   ["2c1b18","4a312c","724133","a55728","b58143","c93305","d6b370","e8e1e1","f59797"],
+  clothes:["262e33","3c4f5c","25557c","5199e4","65c9ff","ff488e","ff5c5c","a7ffc4","ffdeb5","e6e6e6","ffffff"],
+  clothing:["shirtCrewNeck","shirtVNeck","shirtScoopNeck","hoodie","collarAndSweater","blazerAndShirt","overall"],
+  acc:    ["none","round","prescription02","wayfarers","sunglasses"],
+};
+const ACC_LABEL = { none:"geen", round:"rond", prescription02:"bril", wayfarers:"wayfarer", sunglasses:"zonnebril" };
+const TOP_LABEL = { shortFlat:"kort", shortWaved:"golvend", shortCurly:"krullen kort", theCaesar:"caesar", sides:"opzij",
+  dreads01:"dreads", curly:"krullen", bun:"knot", longButNotTooLong:"halflang", straight01:"steil", bob:"bob", fro:"afro", hat:"muts" };
+function rnd(a){ return a[Math.floor(Math.random()*a.length)]; }
+function randomLook(){
+  return { seed:Math.random().toString(36).slice(2,9),
+    skinColor:rnd(O.skin), top:rnd(O.top.filter(t=>t!=="hat")), hairColor:rnd(O.hair),
+    clothing:rnd(O.clothing), clothesColor:rnd(O.clothes), accessories:Math.random()<0.3?rnd(O.acc.filter(a=>a!=="none")):"none" };
+}
+
+/* ===================== DICEBEAR RENDERING + CACHE ===================== */
+const SVG_CACHE_KEY = "zin_svgcache_v2";
+let svgCache = {};
+try { svgCache = JSON.parse(localStorage.getItem(SVG_CACHE_KEY)) || {}; } catch { svgCache = {}; }
+function avatarURL(av, mood){
+  const e = EXPR[mood] || EXPR[3];
+  const p = new URLSearchParams({
+    seed: av.seed || "x", radius:"0", size:"140",
+    skinColor: av.skinColor, top: av.top, topProbability:"100", hairColor: av.hairColor,
+    clothing: av.clothing || "shirtCrewNeck", clothesColor: av.clothesColor,
+    eyes: e.eyes, eyebrows: e.eyebrows, mouth: e.mouth, facialHairProbability:"0",
+  });
+  if (av.accessories && av.accessories !== "none"){ p.set("accessories", av.accessories); p.set("accessoriesProbability","100"); }
+  else p.set("accessoriesProbability","0");
+  return "https://api.dicebear.com/9.x/avataaars/svg?" + p.toString();
+}
+function cacheSVG(url, txt){
+  svgCache[url] = txt;
+  try { localStorage.setItem(SVG_CACHE_KEY, JSON.stringify(svgCache)); }
+  catch { svgCache = { [url]: txt }; try { localStorage.setItem(SVG_CACHE_KEY, JSON.stringify(svgCache)); } catch {} }
+}
+function fetchSVG(url){
+  if (svgCache[url]) return Promise.resolve(svgCache[url]);
+  return fetch(url).then(r => r.text()).then(t => { if(t && t.indexOf("<svg")>=0){ cacheSVG(url,t); } return t; });
+}
+function initialsSVG(name, color){
+  const i = (name||"?").trim().slice(0,2).toUpperCase() || "?";
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#${color||'8b87a0'}"/>`+
+    `<text x="50" y="55" font-size="42" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">${i}</text></svg>`;
+}
+/* zet avatar-svg in een container (async); fallback = initialen */
+function paintInto(container, av, mood, name){
+  const url = avatarURL(av, mood);
+  if (container.dataset.variant === url && container.firstChild) return;
+  container.dataset.variant = url;
+  if (svgCache[url]){ container.innerHTML = svgCache[url]; return; }
+  if (!container.firstChild) container.innerHTML = initialsSVG(name, av.skinColor);
+  fetchSVG(url).then(t => { if (container.dataset.variant === url && t.indexOf("<svg")>=0) container.innerHTML = t; }).catch(()=>{});
+}
+
+/* ===================== PLEKKEN ===================== */
+const SPOTS = [
+  {x:17,y:50},{x:27,y:51},{x:37,y:51},   // bank
+  {x:66,y:52},                           // fauteuil
+  {x:50,y:45},                           // bij staande lamp
+  {x:84,y:62},{x:93,y:64},               // keuken
+  {x:19,y:30},                           // bij het raam
+  {x:45,y:78},{x:62,y:80},               // op de vloer
+  {x:8, y:72},                           // hoekje bij plant
+];
+const WANDER_MS = 4200;   // elke ~4s loopt er iemand naar een nieuwe plek
+const WALK_MS   = 3400;   // duur van het 'lopen'
+const STALE_MS  = 8*3600*1000;
+function depthScale(y){ const s = 0.8 + (y-30)/(82-30)*0.4; return Math.max(0.78, Math.min(1.2, s)); }
+
+/* ===================== IDENTITEIT ===================== */
+const ME_KEY = "zin_me_v2";
+function uid(){ return "u" + Math.random().toString(36).slice(2,9); }
+function loadMe(){ try { return JSON.parse(localStorage.getItem(ME_KEY)); } catch { return null; } }
+function saveMe(m){ localStorage.setItem(ME_KEY, JSON.stringify(m)); }
+let me = loadMe();
+
+const LOCAL_USERS_KEY = "zin_users_v2";
+function loadLocalUsers(){ try { return JSON.parse(localStorage.getItem(LOCAL_USERS_KEY)) || {}; } catch { return {}; } }
+function saveLocalUsers(u){ localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(u)); }
+
+const DEMO = {
+  d1:{ id:"d1", name:"Nina",  av:{seed:"nina",  skinColor:"edb98a", top:"longButNotTooLong", hairColor:"724133", clothing:"shirtScoopNeck", clothesColor:"ff488e", accessories:"none"},          mood:4, updatedAt:Date.now(), demo:true },
+  d2:{ id:"d2", name:"Joost", av:{seed:"joost", skinColor:"edb98a", top:"shortFlat",          hairColor:"2c1b18", clothing:"hoodie",          clothesColor:"25557c", accessories:"prescription02"}, mood:2, updatedAt:Date.now(), demo:true },
+  d3:{ id:"d3", name:"Wende", av:{seed:"wende", skinColor:"ffdbb4", top:"curly",              hairColor:"a55728", clothing:"shirtCrewNeck",   clothesColor:"a7ffc4", accessories:"none"},          mood:3, updatedAt:Date.now(), demo:true },
+  d4:{ id:"d4", name:"Tijn",  av:{seed:"tijn",  skinColor:"d08b5b", top:"dreads01",           hairColor:"2c1b18", clothing:"blazerAndShirt",  clothesColor:"3c4f5c", accessories:"none"},          mood:1, updatedAt:Date.now(), demo:true },
+};
+
+let users = {};
+let DB = null;
+let lastRemote = {};
+
+/* ===================== FIREBASE SYNC ===================== */
+function userPayload(m){ return { name:m.name, av:m.av, mood:m.mood, updatedAt:Date.now() }; }
+function setSync(t){ document.getElementById("sync").textContent = t; }
+function pushMe(){
+  if (!me) return;
+  if (DB){ DB.ref("users/"+me.id).set(userPayload(me)); }
+  else { const lu = loadLocalUsers(); lu[me.id] = { id:me.id, ...userPayload(me) }; saveLocalUsers(lu); rebuildUsers(); }
+}
+function removeMe(){
+  if (!me) return;
+  if (DB) DB.ref("users/"+me.id).remove();
+  const lu = loadLocalUsers(); delete lu[me.id]; saveLocalUsers(lu);
+}
+function normAv(a){
+  a = a || {};
+  return { seed:a.seed||"x", skinColor:a.skinColor||"edb98a", top:a.top||"shortFlat", hairColor:a.hairColor||"2c1b18",
+    clothing:a.clothing||"shirtCrewNeck", clothesColor:a.clothesColor||"5199e4", accessories:a.accessories||"none" };
+}
+function rebuildUsers(remote){
+  let base;
+  if (DB){ if (remote !== undefined) lastRemote = remote || {}; base = lastRemote; }
+  else { base = { ...DEMO, ...loadLocalUsers() }; }
+  const prev = users; users = {};
+  Object.keys(base).forEach(id => {
+    const u = base[id]; if (!u) return;
+    users[id] = { id, name:u.name||"?", av:normAv(u.av), mood:u.mood||3, updatedAt:u.updatedAt||0, demo:!!u.demo };
+  });
+  if (me) users[me.id] = { id:me.id, name:me.name, av:normAv(me.av), mood:me.mood||3, updatedAt:Date.now(), demo:false };
+  syncDom();
+  updateCount();
+}
+function initFirebase(){
+  if (!FIREBASE_CONFIG.apiKey || typeof firebase==="undefined"){
+    setSync("📴 lokaal · vul Firebase in voor delen met vrienden (zie README)");
+    rebuildUsers(); return;
+  }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG); DB = firebase.database();
+    DB.ref("users").on("value", snap => rebuildUsers(snap.val()||{}));
+    DB.ref(".info/connected").on("value", snap => {
+      setSync(snap.val() ? "🔄 live · zichtbaar voor je vrienden" : "⏳ verbinden…");
+      if (snap.val()) pushMe();
+    });
+  } catch(e){ console.log("Firebase init mislukt:", e); setSync("📴 lokaal (sync-fout)"); rebuildUsers(); }
+}
+
+/* ===================== PLAATSING & WANDELEN ===================== */
+const stage = document.getElementById("stage");
+let spotOf = {};          // id -> spotindex
+let occupied = {};        // spotindex -> id
+let walkTimers = {};
+function freeSpots(){
+  const used = new Set(Object.values(occupied));
+  return [...Array(SPOTS.length).keys()].filter(i => !used.has(i));
+}
+function placeNew(id){
+  let free = freeSpots();
+  const idx = free.length ? free[Math.floor(Math.random()*free.length)] : Math.floor(Math.random()*SPOTS.length);
+  spotOf[id] = idx; occupied[idx] = id;
+  positionAvatar(id, false);
+}
+function positionAvatar(id, animate){
+  const el = stage.querySelector('.avatar[data-id="'+id+'"]'); if (!el) return;
+  const s = SPOTS[spotOf[id]]; if (!s) return;
+  const oldX = parseFloat(el.style.left) || s.x;
+  if (animate){
+    const face = (s.x < oldX-0.5) ? -1 : (s.x > oldX+0.5 ? 1 : (el.style.getPropertyValue("--face")||1));
+    el.style.setProperty("--face", face);
+    el.classList.add("walking");
+    clearTimeout(walkTimers[id]);
+    walkTimers[id] = setTimeout(()=> el.classList.remove("walking"), WALK_MS);
+  }
+  el.style.left = s.x + "%";
+  el.style.top  = s.y + "%";
+  el.style.setProperty("--scale", depthScale(s.y).toFixed(3));
+  el.style.zIndex = 5 + Math.round(s.y);
+}
+function wanderOne(){
+  const ids = Object.keys(users);
+  if (ids.length === 0) return;
+  const id = ids[Math.floor(Math.random()*ids.length)];
+  let free = freeSpots().filter(i => i !== spotOf[id]);
+  if (!free.length) return;
+  const old = spotOf[id];
+  const idx = free[Math.floor(Math.random()*free.length)];
+  if (old != null && occupied[old] === id) delete occupied[old];
+  spotOf[id] = idx; occupied[idx] = id;
+  positionAvatar(id, true);
+}
+
+/* ===================== DOM-SYNC AVATARS ===================== */
+function syncDom(){
+  const ids = Object.keys(users);
+  [...stage.querySelectorAll(".avatar")].forEach(el => {
+    if (!users[el.dataset.id]){ const id=el.dataset.id; delete spotOf[id]; for(const k in occupied) if(occupied[k]===id) delete occupied[k]; el.remove(); }
+  });
+  ids.forEach(id => {
+    const u = users[id]; const m = MOODS[u.mood] || MOODS[3];
+    let el = stage.querySelector('.avatar[data-id="'+id+'"]');
+    if (!el){
+      el = document.createElement("div"); el.className = "avatar"; el.dataset.id = id;
+      el.innerHTML = `<div class="shadow"></div>
+        <div class="plumb"><div class="gem"></div><div class="pf"></div></div>
+        <div class="facer"><div class="inner"></div></div>
+        <div class="nametag"></div>`;
+      el.addEventListener("click", ()=> onAvatarTap(id));
+      stage.appendChild(el);
+      el.querySelector(".inner").style.animationDelay = (parseInt(id.replace(/\D/g,"")||"0")%10)/6 + "s";
+      placeNew(id);
+    }
+    el.classList.toggle("stale", !u.demo && u.updatedAt && (Date.now()-u.updatedAt > STALE_MS));
+    const gem = el.querySelector(".gem");
+    gem.style.setProperty("--col", m.col); gem.style.setProperty("--glow", m.glow);
+    el.querySelector(".pf").textContent = m.emoji;
+    el.querySelector(".nametag").textContent = (me && id===me.id ? "jij" : u.name);
+    paintInto(el.querySelector(".inner"), u.av, u.mood, u.name);
+  });
+}
+function updateCount(){
+  const n = Object.keys(users).length;
+  const keen = Object.values(users).filter(u => u.mood >= 3).length;
+  document.getElementById("count").textContent = `${n} thuis · ${keen} ${keen===1?"heeft":"hebben"} wel zin`;
+}
+
+/* ===================== TAP OP AVATAR ===================== */
+let toastTimer = null;
+function onAvatarTap(id){
+  if (me && id===me.id){ openMood(); return; }
+  const u = users[id]; if (!u) return;
+  const m = MOODS[u.mood] || MOODS[3];
+  const tav = document.getElementById("toastAv");
+  tav.dataset.variant=""; paintInto(tav, u.av, u.mood, u.name);
+  document.getElementById("toastName").textContent = u.name;
+  const ago = u.demo ? "huisgenoot" : timeAgo(u.updatedAt);
+  document.getElementById("toastStatus").innerHTML = `<span class="tdot" style="color:${m.hex};background:${m.hex}"></span>${m.label}${ago?" · "+ago:""}`;
+  const t = document.getElementById("toast"); t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=> t.classList.remove("show"), 2800);
+}
+function timeAgo(ts){
+  if (!ts) return "";
+  const s = Math.floor((Date.now()-ts)/1000);
+  if (s<60) return "zojuist";
+  if (s<3600) return Math.floor(s/60)+" min geleden";
+  if (s<86400) return Math.floor(s/3600)+" uur geleden";
+  return Math.floor(s/86400)+" dagen geleden";
+}
+
+/* ===================== LEGEND ===================== */
+(function(){
+  const el = document.getElementById("legend");
+  MOOD_ORDER.forEach(k => {
+    const m = MOODS[k]; const row = document.createElement("div"); row.className="row";
+    row.innerHTML = `<span class="dot" style="background:${m.hex};color:${m.hex}"></span><span>${m.emoji} <b>${m.short}</b> — ${m.label}</span>`;
+    el.appendChild(row);
+  });
+})();
+
+/* ===================== AVATAR-CREATOR ===================== */
+const profileModal = document.getElementById("profileModal");
+let draft = randomLook();
+let previewTimer = null;
+function drawPreview(){
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(()=> {
+    const pv = document.getElementById("avPreview"); pv.dataset.variant="";
+    paintInto(pv, draft, me ? me.mood||3 : 3, document.getElementById("inpName").value);
+  }, 120);
+}
+function swatch(val, key, container){
+  const b = document.createElement("div"); b.className = "swatch" + (draft[key]===val?" sel":"");
+  b.style.background = "#"+val; b.onclick = ()=>{ draft[key]=val; buildOptions(); drawPreview(); };
+  container.appendChild(b);
+}
+function chip(val, label, key, container){
+  const b = document.createElement("button"); b.className = "chip" + (draft[key]===val?" sel":"");
+  b.textContent = label; b.onclick = ()=>{ draft[key]=val; buildOptions(); drawPreview(); };
+  container.appendChild(b);
+}
+function buildOptions(){
+  const skin=document.getElementById("optSkin"); skin.innerHTML=""; O.skin.forEach(v=>swatch(v,"skinColor",skin));
+  const top=document.getElementById("optTop"); top.innerHTML=""; O.top.forEach(v=>chip(v,TOP_LABEL[v]||v,"top",top));
+  const hair=document.getElementById("optHair"); hair.innerHTML=""; O.hair.forEach(v=>swatch(v,"hairColor",hair));
+  const cl=document.getElementById("optClothes"); cl.innerHTML=""; O.clothes.forEach(v=>swatch(v,"clothesColor",cl));
+  const acc=document.getElementById("optAcc"); acc.innerHTML=""; O.acc.forEach(v=>chip(v,ACC_LABEL[v]||v,"accessories",acc));
+}
+function openProfile(isNew){
+  draft = me ? { ...normAv(me.av) } : randomLook();
+  document.getElementById("inpName").value = me ? me.name : "";
+  document.getElementById("pmTitle").textContent = isNew ? "Welkom thuis! 👋" : "Jouw personage";
+  document.getElementById("pmSub").textContent = isNew
+    ? "Maak je personage. Je vrienden zien jou straks in het huis."
+    : "Pas je naam of uiterlijk aan.";
+  document.getElementById("pmCancel").style.display = isNew ? "none" : "block";
+  document.getElementById("pmLogout").style.display = me ? "block" : "none";
+  buildOptions(); drawPreview();
+  profileModal.classList.add("open");
+}
+document.getElementById("inpName").addEventListener("input", drawPreview);
+document.getElementById("rerollBtn").addEventListener("click", ()=>{ draft = randomLook(); buildOptions(); drawPreview(); });
+document.getElementById("pmSave").addEventListener("click", ()=>{
+  const name = (document.getElementById("inpName").value||"").trim();
+  if (!name){ document.getElementById("inpName").focus(); return; }
+  const isNew = !me;
+  me = { id: me?me.id:uid(), name, av:{ ...draft }, mood: me?me.mood:undefined };
+  saveMe(me);
+  profileModal.classList.remove("open");
+  if (isNew || !me.mood){ openMood(); }
+  else { pushMe(); rebuildUsers(DB?undefined:null); refreshMeChip(); }
+});
+document.getElementById("pmCancel").addEventListener("click", ()=> profileModal.classList.remove("open"));
+document.getElementById("pmLogout").addEventListener("click", ()=>{
+  if (!confirm("Personage verwijderen en uitloggen?")) return;
+  removeMe(); localStorage.removeItem(ME_KEY); me = null;
+  profileModal.classList.remove("open"); rebuildUsers(DB?undefined:null); refreshMeChip(); openProfile(true);
+});
+
+/* ===================== STAND KIEZEN ===================== */
+const moodModal = document.getElementById("moodModal");
+(function(){
+  const list = document.getElementById("moodList"); list.innerHTML="";
+  MOOD_ORDER.forEach(k => {
+    const m = MOODS[k]; const b = document.createElement("button");
+    b.className="moodbtn"; b.style.background = m.hex; b.dataset.mood = k;
+    b.innerHTML = `<span class="be">${m.emoji}</span><span class="bt">${m.short}<small>${m.label}</small></span>`;
+    b.onclick = ()=> chooseMood(k); list.appendChild(b);
+  });
+})();
+function openMood(){
+  [...document.querySelectorAll(".moodbtn")].forEach(b => b.classList.toggle("sel", me && Number(b.dataset.mood)===me.mood));
+  moodModal.classList.add("open");
+}
+function chooseMood(k){
+  if (!me) return;
+  me.mood = Number(k); saveMe(me); pushMe(); rebuildUsers(DB?undefined:null); refreshMeChip();
+  moodModal.classList.remove("open");
+}
+document.getElementById("moodCancel").addEventListener("click", ()=> moodModal.classList.remove("open"));
+[profileModal,moodModal].forEach(mb => mb.addEventListener("click", e => { if (e.target===mb) mb.classList.remove("open"); }));
+
+/* ===================== TOPBAR ===================== */
+function refreshMeChip(){
+  if (!me){ document.getElementById("meName").textContent="—"; document.getElementById("meMini").innerHTML=""; return; }
+  const mini = document.getElementById("meMini"); mini.dataset.variant="";
+  paintInto(mini, normAv(me.av), me.mood||3, me.name);
+  document.getElementById("meName").textContent = me.name;
+}
+document.getElementById("meChip").addEventListener("click", ()=>{ if (me) openMood(); else openProfile(true); });
+document.getElementById("profileBtn").addEventListener("click", ()=> openProfile(false));
+
+/* ===================== START ===================== */
+function start(){
+  refreshMeChip();
+  initFirebase();
+  if (!me || !me.av){ if (me && !me.av) me=null; openProfile(true); }
+  else if (!me.mood){ openMood(); }
+}
+start();
+setInterval(wanderOne, WANDER_MS);
+setInterval(()=>{ if (Object.keys(users).length) updateCount(); }, 60000);
+setInterval(()=>{ if (me) pushMe(); }, 4*60000);
+
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  window.addEventListener("load", ()=> navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>

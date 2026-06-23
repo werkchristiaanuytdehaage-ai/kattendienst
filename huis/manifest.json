@@ -1,0 +1,12 @@
+{
+  "name": "Spontaan sociaal — wie heeft zin om af te spreken",
+  "short_name": "Spontaan",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1b1730",
+  "theme_color": "#2b2440",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

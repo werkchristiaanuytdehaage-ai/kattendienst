@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a2f57"/><stop offset="1" stop-color="#1b1730"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- huisje -->
+  <path d="M256 120 L392 232 L360 232 L360 384 L152 384 L152 232 L120 232 Z" fill="#e9d9c3"/>
+  <rect x="152" y="232" width="208" height="152" fill="#d9c4a6"/>
+  <rect x="196" y="300" width="60" height="84" rx="6" fill="#7a5a36"/>
+  <rect x="280" y="280" width="56" height="48" rx="6" fill="#9fd3ff"/>
+  <!-- plumbob -->
+  <g transform="translate(256 96)">
+    <rect x="-34" y="-34" width="68" height="68" rx="14" transform="rotate(45)" fill="#3fb950"/>
+    <rect x="-34" y="-34" width="68" height="68" rx="14" transform="rotate(45)" fill="#7ee787" opacity="0.5"/>
+  </g>
+</svg>
