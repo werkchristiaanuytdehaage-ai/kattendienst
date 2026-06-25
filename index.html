@@ -67,8 +67,12 @@
   }
 
   .grid { display: grid; gap: 14px; }
-  #feederGrid { grid-template-columns: 1fr 1fr; }
-  #litterGrid { grid-template-columns: 1fr 1fr 1fr; }
+  #feederGrid, #litterGrid {
+    grid-template-columns: 1fr;
+    max-width: 460px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 
   .card {
     background: var(--card);
@@ -318,18 +322,15 @@
         <input id="cfg-title" type="text" maxlength="40">
       </div>
 
-      <div class="group-title">🍽️ Voederbakken</div>
-      <div class="field"><label>Naam bak 1</label><input id="cfg-feeder1" type="text" maxlength="30"></div>
-      <div class="field"><label>Naam bak 2</label><input id="cfg-feeder2" type="text" maxlength="30"></div>
+      <div class="group-title">🍽️ Voederbak</div>
+      <div class="field"><label>Naam</label><input id="cfg-feeder1" type="text" maxlength="30"></div>
       <div class="time-row">
         <div class="field"><label>Ochtendvoeding</label><input id="cfg-time1" type="time"></div>
         <div class="field"><label>Avondvoeding</label><input id="cfg-time2" type="time"></div>
       </div>
 
-      <div class="group-title">🚽 Kattenbakken</div>
-      <div class="field"><label>Naam bak 1</label><input id="cfg-litter1" type="text" maxlength="30"></div>
-      <div class="field"><label>Naam bak 2</label><input id="cfg-litter2" type="text" maxlength="30"></div>
-      <div class="field"><label>Naam bak 3</label><input id="cfg-litter3" type="text" maxlength="30"></div>
+      <div class="group-title">🚽 Kattenbak</div>
+      <div class="field"><label>Naam</label><input id="cfg-litter1" type="text" maxlength="30"></div>
 
       <div class="modal-actions">
         <button class="btn-cancel" id="cfgCancel">Annuleren</button>
@@ -369,11 +370,11 @@
     </div>
 
     <!-- FEEDERS -->
-    <div class="section-title">🍽️ Voederbakken <span class="pill">2 bakken · 4 voedingen elk · 07:00 &amp; 18:15</span></div>
+    <div class="section-title">🍽️ Voederbak <span class="pill">4 voedingen · 07:00 &amp; 18:15</span></div>
     <div class="grid" id="feederGrid"></div>
 
     <!-- LITTER -->
-    <div class="section-title">🚽 Kattenbakken <span class="pill">3 bakken · vuil na 12u · nood na 24u</span></div>
+    <div class="section-title">🚽 Kattenbak <span class="pill">vuil na 12u · nood na 24u</span></div>
     <div class="grid" id="litterGrid"></div>
 
     <div class="logbook" id="logbook"></div>
@@ -399,13 +400,10 @@ const FIREBASE_CONFIG = {
 const DEFAULT_CONFIG = {
   title: "🐱 Kattendienst 🐱",
   feeders: [
-    { id: "feeder1", name: "Voederbak 1", emoji: "🥣" },
-    { id: "feeder2", name: "Voederbak 2", emoji: "🍲" },
+    { id: "feeder1", name: "Voederbak", emoji: "🥣" },
   ],
   litters: [
-    { id: "litter1", name: "Kattenbak 1", emoji: "🟫" },
-    { id: "litter2", name: "Kattenbak 2", emoji: "🟫" },
-    { id: "litter3", name: "Kattenbak 3", emoji: "🟫" },
+    { id: "litter1", name: "Kattenbak", emoji: "🟫" },
   ],
   feedTimes: [ {h:7,m:0}, {h:18,m:15} ], // ochtend & avond
 };
@@ -524,8 +522,8 @@ function saveRound() { localStorage.setItem(ROUND_KEY, JSON.stringify(round)); }
 
 let pendingType = null; // 'voer' of 'bak'
 const TYPE_LABEL = {
-  voer: "beide voederbakken gevuld 🥣",
-  bak:  "alle kattenbakken verschoond 🧽",
+  voer: "voederbak gevuld 🥣",
+  bak:  "kattenbak verschoond 🧽",
 };
 
 // Roep aan na het vullen/verschonen van één bak; opent de picker zodra de groep compleet is.
@@ -545,8 +543,8 @@ function markRoundProgress(group, id) {
 function askWho(type) {
   pendingType = type;
   document.getElementById("whoSub").textContent =
-    type === "voer" ? "Je hebt beide voederbakken gevuld! Wie was dat?"
-                     : "Je hebt alle kattenbakken verschoond! Wie was dat?";
+    type === "voer" ? "Je hebt de voederbak gevuld! Wie was dat?"
+                     : "Je hebt de kattenbak verschoond! Wie was dat?";
   document.getElementById("whoModal").classList.add("open");
 }
 
@@ -837,10 +835,7 @@ function pad(n){ return String(n).padStart(2,"0"); }
 function openSettings() {
   document.getElementById("cfg-title").value = config.title;
   document.getElementById("cfg-feeder1").value = config.feeders[0].name;
-  document.getElementById("cfg-feeder2").value = config.feeders[1].name;
   document.getElementById("cfg-litter1").value = config.litters[0].name;
-  document.getElementById("cfg-litter2").value = config.litters[1].name;
-  document.getElementById("cfg-litter3").value = config.litters[2].name;
   document.getElementById("cfg-time1").value = pad(config.feedTimes[0].h)+":"+pad(config.feedTimes[0].m);
   document.getElementById("cfg-time2").value = pad(config.feedTimes[1].h)+":"+pad(config.feedTimes[1].m);
   modal.classList.add("open");
@@ -854,11 +849,8 @@ function parseTime(v, fallback) {
 function saveSettings() {
   const t = (id, fb) => (document.getElementById(id).value.trim() || fb);
   config.title = t("cfg-title", DEFAULT_CONFIG.title);
-  config.feeders[0].name = t("cfg-feeder1", "Voederbak 1");
-  config.feeders[1].name = t("cfg-feeder2", "Voederbak 2");
-  config.litters[0].name = t("cfg-litter1", "Kattenbak 1");
-  config.litters[1].name = t("cfg-litter2", "Kattenbak 2");
-  config.litters[2].name = t("cfg-litter3", "Kattenbak 3");
+  config.feeders[0].name = t("cfg-feeder1", "Voederbak");
+  config.litters[0].name = t("cfg-litter1", "Kattenbak");
   config.feedTimes[0] = parseTime(document.getElementById("cfg-time1").value, config.feedTimes[0]);
   config.feedTimes[1] = parseTime(document.getElementById("cfg-time2").value, config.feedTimes[1]);
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
