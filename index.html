@@ -271,8 +271,11 @@
     animation: streakPop 0.5s cubic-bezier(.2,1.4,.4,1);
   }
   @keyframes streakPop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .streak-emoji { font-size: 84px; animation: trophyBounce 1s ease infinite; }
-  @keyframes trophyBounce { 0%,100%{transform:translateY(0) rotate(-6deg);} 50%{transform:translateY(-12px) rotate(6deg);} }
+  .streak-gif {
+    width: 280px; max-width: 82vw; height: auto; max-height: 320px;
+    border-radius: 22px; box-shadow: 0 12px 34px rgba(0,0,0,0.4);
+    object-fit: cover; background: rgba(255,255,255,0.12); display: block; margin: 0 auto;
+  }
   .streak-title {
     font-size: 46px; font-weight: 900; letter-spacing: -1px; margin-top: 4px;
     background: linear-gradient(90deg,#ffd86b,#ff7eb6,#6dd5ed);
@@ -297,8 +300,8 @@
   .log-empty { color: var(--muted); font-size: 13px; margin-left: 4px; }
   @media (max-width: 600px) {
     .who-btn { font-size: 16px; padding: 18px 8px; }
-    .streak-emoji { font-size: 64px; }
-    .streak-title { font-size: 34px; }
+    .streak-gif { max-width: 80vw; max-height: 250px; }
+    .streak-title { font-size: 30px; }
     .streak-name { font-size: 18px; }
     .logbook { margin-top: 18px; }
     .logbook h3 { font-size: 15px; }
@@ -352,7 +355,7 @@
 
   <div class="streak-overlay" id="streakOverlay">
     <div class="streak-card">
-      <div class="streak-emoji">🏆</div>
+      <img id="streakGif" class="streak-gif" alt="blije kat" />
       <div class="streak-title">clean-streak!</div>
       <div class="streak-name" id="streakName"></div>
     </div>
@@ -520,6 +523,15 @@ let round = { feeders: [], litters: [] };
 try { const r = JSON.parse(localStorage.getItem(ROUND_KEY)); if (r) round = { feeders: r.feeders||[], litters: r.litters||[] }; } catch {}
 function saveRound() { localStorage.setItem(ROUND_KEY, JSON.stringify(round)); }
 
+// 20 kat-gifjes (cataas.com), roulerend gebruikt bij elke clean-streak
+const CAT_GIFS = [
+  "eNDVAQengWOc0w5h","38lyiUi0Hv9MzKwW","GDwj7aOweVqT2xFl","kzBo5wf77MlRxq9l",
+  "JqyFY6WDHNNa61Rd","YEHfa7RUV8khV1tn","3Z6CcYkHotdUXQC9","X84sfR7lL7CPPUKm",
+  "lH3iLDOzZ1oluDtN","bUQvYwL24tiNJkG6","KxxO9gprMWpcXD4o","RxxKAUrXRG91ft68",
+  "S0iYXZK38I79GPnI","TmS6tUEzcEKjfqDb","SjByFMQL5QNzL2Cw","zmDE6ZDwFBZ13Eyv",
+  "2T7yPn3J5qz54Ygy","rFVQMyv6t5vf6QxE","mD6iFZcKgciLYSxr","Hd8JO825t7YNgjCZ",
+].map(id => "https://cataas.com/cat/" + id);
+
 let pendingType = null; // 'voer' of 'bak'
 const TYPE_LABEL = {
   voer: "voederbak gevuld 🥣",
@@ -563,6 +575,17 @@ function chooseWho(name) {
 function showCleanStreak(name) {
   const ov = document.getElementById("streakOverlay");
   document.getElementById("streakName").textContent = "🎉 " + name + " 🎉";
+  // roulerende kat-gif kiezen
+  let idx = parseInt(localStorage.getItem("catGifIndex") || "0", 10);
+  if (isNaN(idx) || idx < 0) idx = 0;
+  idx = idx % CAT_GIFS.length;
+  const img = document.getElementById("streakGif");
+  img.onerror = () => { img.style.display = "none"; };
+  img.style.display = "";
+  img.src = CAT_GIFS[idx];
+  localStorage.setItem("catGifIndex", String((idx + 1) % CAT_GIFS.length));
+  // alvast de volgende inladen voor een snelle weergave
+  const nxt = new Image(); nxt.src = CAT_GIFS[(idx + 1) % CAT_GIFS.length];
   // confetti
   ov.querySelectorAll(".confetti").forEach(c => c.remove());
   const bits = ["🎉","✨","🏆","🐾","⭐","🎊"];
@@ -577,7 +600,7 @@ function showCleanStreak(name) {
   }
   ov.classList.add("open");
   clearTimeout(showCleanStreak._t);
-  showCleanStreak._t = setTimeout(() => ov.classList.remove("open"), 2800);
+  showCleanStreak._t = setTimeout(() => ov.classList.remove("open"), 4000);
 }
 // tik om weg te klikken
 document.getElementById("streakOverlay").addEventListener("click", () =>
