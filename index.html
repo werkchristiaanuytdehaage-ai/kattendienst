@@ -731,7 +731,7 @@ function renderFeeders(nowMs) {
       <div class="bowls">${bowls}</div>
       <div class="feed-count"><b>${s.left}</b> / ${MAX_FEEDS} voedingen over</div>
       <div class="next-feed">⏭️ Volgende voeding: ${nftStr}</div>
-      <button class="action feeder-btn" data-feeder="${f.id}">✅ Bakje opnieuw gevuld (4 vol)</button>
+      <button class="action feeder-btn" data-feeder="${f.id}">✅ Bakje opnieuw gevuld</button>
       <div class="last-reset">Gevuld: ${new Date(state[f.id].filledAt).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
     `;
     grid.appendChild(card);
@@ -793,7 +793,7 @@ function renderLitters(nowMs) {
           <div class="small">sinds laatste verschoning · nood bij 24u</div>
         </div>
       </div>
-      <button class="action litter-btn" data-litter="${l.id}">🧽 Verschoond (schoon!)</button>
+      <button class="action litter-btn" data-litter="${l.id}">🧽 Verschoond</button>
       <div class="last-reset">Verschoond: ${new Date(state[l.id].cleanedAt).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
     `;
     grid.appendChild(card);
