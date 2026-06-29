@@ -79,6 +79,27 @@ def main():
     if not subs:
         print("Geen aanmeldingen — niets te sturen.")
         return
+
+    # testmodus: stuur direct een proefmelding naar alle apparaten
+    if str(os.environ.get("TEST", "")).lower() in ("1", "true", "yes"):
+        payload = {"title": "🔔 Testmelding", "body": "Top! Achtergrond-meldingen werken. 🐱",
+                   "tag": "test", "url": "./index.html"}
+        for subkey, sub in list(subs.items()):
+            if not isinstance(sub, dict) or "endpoint" not in sub:
+                continue
+            info = {"endpoint": sub["endpoint"], "keys": sub.get("keys", {})}
+            try:
+                claims = {"sub": SUBJECT, "exp": int(time.time()) + 12 * 3600}
+                webpush(subscription_info=info, data=json.dumps(payload),
+                        vapid_private_key=PEM_PATH, vapid_claims=claims)
+                print("testmelding verstuurd naar", subkey)
+            except WebPushException as e:
+                code = getattr(e.response, "status_code", None)
+                print("test push fout", subkey, code, e)
+                if code in (404, 410):
+                    delete(f"subscriptions/{subkey}")
+        return
+
     state = get("state") or {}
     config = get("config") or {}
     flags = get("pushflags") or {}
