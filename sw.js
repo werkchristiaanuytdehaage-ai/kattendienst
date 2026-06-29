@@ -1,4 +1,4 @@
-const CACHE = "kattendienst-v1";
+const CACHE = "kattendienst-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -31,6 +31,36 @@ self.addEventListener("fetch", e => {
         return resp;
       }).catch(() => cached);
       return cached || network;
+    })
+  );
+});
+
+// ===== Web Push: melding tonen ook als de app dicht is =====
+self.addEventListener("push", e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; }
+  catch (_) { data = { title: "🐱 Kattendienst", body: e.data ? e.data.text() : "" }; }
+  const title = data.title || "🐱 Kattendienst";
+  const opts = {
+    body: data.body || "",
+    tag: data.tag || "kattendienst",
+    renotify: true,
+    icon: "./icon.svg",
+    badge: "./icon.svg",
+    data: { url: data.url || "./index.html" }
+  };
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "./index.html";
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+      for (const c of list) {
+        if (c.url.includes("kattendienst") && "focus" in c) return c.focus();
+      }
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });

@@ -368,7 +368,7 @@
     </header>
 
     <div class="perm-bar" id="permBar" style="display:none;">
-      <span>🔔 Zet meldingen aan zodat je een seintje krijgt bij (bijna) lege bakken.</span>
+      <span>🔔 Zet meldingen aan — ook als de app dicht is — bij (bijna) lege voederbak en vuile kattenbak.</span>
       <button id="permBtn">Meldingen aanzetten</button>
     </div>
 
@@ -398,6 +398,10 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "508950070207",
   appId: "1:508950070207:web:bbe74fbf1e667186c0970a"
 };
+
+/* ====================== WEB PUSH ====================== */
+// Publieke VAPID-sleutel (de privésleutel staat als secret op GitHub).
+const VAPID_PUBLIC = "BED4oNhOZDztD__7gk2IKjXk9F5d9wuj5p4L6iPRAwgN1TKGU4oXRxXz1-RYAdfPRAq6fE8l5ClOEkm4f3oM8QA";
 
 /* ====================== CONFIG ====================== */
 const DEFAULT_CONFIG = {
@@ -827,15 +831,69 @@ document.addEventListener("click", e => {
   }
 });
 
-/* ====================== NOTIFICATION PERMISSION ====================== */
+/* ====================== WEB PUSH (achtergrond-meldingen) ====================== */
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+function subKey(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+  return "s" + h.toString(36);
+}
 function refreshPermBar() {
   const bar = document.getElementById("permBar");
-  if (!("Notification" in window)) { bar.style.display = "none"; return; }
-  bar.style.display = (Notification.permission === "default") ? "flex" : "none";
+  if (!bar) return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    bar.style.display = "none"; return;
+  }
+  if (Notification.permission === "denied") { bar.style.display = "none"; return; }
+  if (Notification.permission === "granted") {
+    navigator.serviceWorker.ready
+      .then(reg => reg.pushManager.getSubscription())
+      .then(sub => { bar.style.display = sub ? "none" : "flex"; })
+      .catch(() => { bar.style.display = "flex"; });
+  } else {
+    bar.style.display = "flex";
+  }
 }
-document.getElementById("permBtn").addEventListener("click", () => {
-  Notification.requestPermission().then(refreshPermBar);
-});
+async function enablePush() {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      alert("Push wordt hier niet ondersteund. Op iPhone: zet de app eerst op je beginscherm (deel-knop → 'Zet op beginscherm') en open hem van daaruit.");
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { refreshPermBar(); return; }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC),
+      });
+    }
+    const j = sub.toJSON();
+    if (DB) {
+      await DB.ref("subscriptions/" + subKey(j.endpoint)).set({
+        endpoint: j.endpoint, keys: j.keys, ua: navigator.userAgent.slice(0, 90), at: Date.now(),
+      });
+    }
+    refreshPermBar();
+    reg.showNotification("🔔 Meldingen staan aan", {
+      body: "Je krijgt voortaan een seintje bij (bijna) lege voederbak en vuile kattenbak — ook als de app dicht is.",
+      icon: "./icon.svg",
+    });
+  } catch (e) {
+    console.log("push aanzetten mislukt", e);
+    alert("Meldingen aanzetten lukte niet: " + (e && e.message ? e.message : e));
+  }
+}
+document.getElementById("permBtn").addEventListener("click", enablePush);
 
 /* ====================== LOOP ====================== */
 function render() {

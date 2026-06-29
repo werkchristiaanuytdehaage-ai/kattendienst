@@ -1,0 +1,28 @@
+name: Push meldingen
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # elke 15 minuten (UTC; tijden worden naar Europe/Amsterdam omgerekend)
+  workflow_dispatch:          # handmatig kunnen starten via de Actions-tab
+
+# voorkom dat twee runs tegelijk meldingen sturen
+concurrency:
+  group: push-notify
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Installeer pywebpush
+        run: pip install --quiet pywebpush
+      - name: Stuur meldingen
+        env:
+          DB_URL: https://kattendienst-default-rtdb.europe-west1.firebasedatabase.app
+          VAPID_SUBJECT: mailto:werk.christiaanuytdehaage@gmail.com
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+        run: python scripts/notify.py
