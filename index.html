@@ -566,14 +566,31 @@ function askWho(type) {
 
 function chooseWho(name) {
   document.getElementById("whoModal").classList.remove("open");
-  const entry = { name, type: pendingType, at: Date.now() };
+  const type = pendingType;
   pendingType = null;
+  const entry = { name, type, at: Date.now() };
   logbook.unshift(entry);
   logbook = logbook.slice(0, LOG_MAX);
   localStorage.setItem(LOG_KEY, JSON.stringify(logbook));
   if (DB) DB.ref("log").set(logbook);
   renderLog();
   showCleanStreak(name);
+  // onthoud wie dit toestel gebruikt + koppel naam aan de push-aanmelding
+  localStorage.setItem("myName", name);
+  tagMySubscription(name);
+  // laat de verzender de ándere telefoon een melding sturen
+  if (DB && type) DB.ref("events").push({ who: name, type, at: Date.now() });
+}
+
+// koppelt de naam aan de push-aanmelding van dít toestel (zodat de verzender de uitvoerder kan overslaan)
+async function tagMySubscription(name) {
+  try {
+    if (!DB || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await DB.ref("subscriptions/" + subKey(sub.toJSON().endpoint) + "/name").set(name);
+  } catch (e) { console.log("naam koppelen mislukt", e); }
 }
 
 function showCleanStreak(name) {
@@ -880,7 +897,8 @@ async function enablePush() {
     const j = sub.toJSON();
     if (DB) {
       await DB.ref("subscriptions/" + subKey(j.endpoint)).set({
-        endpoint: j.endpoint, keys: j.keys, ua: navigator.userAgent.slice(0, 90), at: Date.now(),
+        endpoint: j.endpoint, keys: j.keys, ua: navigator.userAgent.slice(0, 90),
+        at: Date.now(), name: localStorage.getItem("myName") || null,
       });
     }
     refreshPermBar();

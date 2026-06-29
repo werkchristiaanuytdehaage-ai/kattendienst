@@ -100,6 +100,43 @@ def main():
                     delete(f"subscriptions/{subkey}")
         return
 
+    # ---- "iemand heeft een taak gedaan" → melding naar de ánder ----
+    events = get("events") or {}
+    if isinstance(events, dict):
+        now = time.time() * 1000
+        for ekey, ev in list(events.items()):
+            if not isinstance(ev, dict):
+                delete(f"events/{ekey}"); continue
+            who = ev.get("who", "Iemand")
+            etype = ev.get("type")
+            at = ev.get("at", 0)
+            if now - at > 60 * 60 * 1000:   # ouder dan een uur: overslaan
+                delete(f"events/{ekey}"); continue
+            if etype == "voer":
+                title, body = "✅ Voederbak gevuld", f"Gedaan door {who} 🥣"
+            elif etype == "bak":
+                title, body = "✅ Kattenbak verschoond", f"Gedaan door {who} 🧽"
+            else:
+                delete(f"events/{ekey}"); continue
+            payload = {"title": title, "body": body, "tag": "action-" + ekey, "url": "./index.html"}
+            for subkey, sub in list(subs.items()):
+                if not isinstance(sub, dict) or "endpoint" not in sub:
+                    continue
+                if sub.get("name") == who:   # niet naar de uitvoerder zelf
+                    continue
+                info = {"endpoint": sub["endpoint"], "keys": sub.get("keys", {})}
+                try:
+                    claims = {"sub": SUBJECT, "exp": int(time.time()) + 12 * 3600}
+                    webpush(subscription_info=info, data=json.dumps(payload),
+                            vapid_private_key=PEM_PATH, vapid_claims=claims)
+                    print("actie-melding naar", subkey, "-", title)
+                except WebPushException as e:
+                    code = getattr(e.response, "status_code", None)
+                    print("actie push fout", subkey, code, e)
+                    if code in (404, 410):
+                        delete(f"subscriptions/{subkey}"); subs.pop(subkey, None)
+            delete(f"events/{ekey}")
+
     state = get("state") or {}
     config = get("config") or {}
     flags = get("pushflags") or {}

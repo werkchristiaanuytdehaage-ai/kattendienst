@@ -2,7 +2,7 @@ name: Push meldingen
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # elke 15 minuten (UTC; tijden worden naar Europe/Amsterdam omgerekend)
+    - cron: "*/5 * * * *"    # elke 5 minuten (UTC; tijden worden naar Europe/Amsterdam omgerekend)
   workflow_dispatch:          # handmatig kunnen starten via de Actions-tab
     inputs:
       test:
