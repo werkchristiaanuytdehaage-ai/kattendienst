@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>🎪 Rad van Fortuin</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --gold: #ffd23f;
+    --pink: #ff2e88;
+    --blue: #17d1ff;
+    --purple: #b429f9;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #12002b;
+  }
+  body {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    color: #fff;
+  }
+
+  /* ---------- spinning spotlight background ---------- */
+  .rays {
+    position: fixed;
+    inset: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      from 0deg,
+      #2a0057 0deg, #3d0a6e 15deg, #2a0057 30deg,
+      #4b0a7a 45deg, #2a0057 60deg, #3d0a6e 75deg,
+      #2a0057 90deg
+    );
+    animation: spinRays 40s linear infinite;
+    opacity: 0.9;
+  }
+  @keyframes spinRays { to { transform: rotate(360deg); } }
+
+  /* ---------- intro question ---------- */
+  #intro {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: radial-gradient(circle at 50% 40%, #4b0a8f, #12002b 70%);
+    cursor: pointer;
+    padding: 24px;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  #intro.hide {
+    opacity: 0;
+    transform: scale(1.1);
+    pointer-events: none;
+  }
+  #intro h1 {
+    font-size: clamp(30px, 9vw, 54px);
+    margin: 0 0 14px;
+    font-weight: 900;
+    color: #fff;
+    text-shadow:
+      0 0 10px var(--pink),
+      0 0 24px var(--pink),
+      0 0 44px var(--purple);
+    animation: pulseGlow 1.6s ease-in-out infinite;
+  }
+  #intro p {
+    font-size: clamp(15px, 4vw, 19px);
+    color: #ffd23f;
+    margin: 0;
+    letter-spacing: 0.5px;
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes pulseGlow {
+    0%, 100% { text-shadow: 0 0 10px var(--pink), 0 0 24px var(--pink), 0 0 44px var(--purple); }
+    50% { text-shadow: 0 0 18px var(--gold), 0 0 40px var(--pink), 0 0 70px var(--purple); }
+  }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ---------- main stage ---------- */
+  #stage {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 16px;
+  }
+
+  .title {
+    font-size: clamp(24px, 7vw, 36px);
+    font-weight: 900;
+    text-align: center;
+    margin: 0 0 6px;
+    color: #fff;
+    text-shadow: 0 0 8px var(--blue), 0 0 20px var(--purple);
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+  .hint {
+    font-size: clamp(13px, 3.5vw, 16px);
+    color: #ffd23f;
+    margin: 0 0 18px;
+    text-align: center;
+    animation: blink 1.5s ease-in-out infinite;
+  }
+  .hint.spinning-hide { visibility: hidden; }
+
+  /* ---------- wheel ---------- */
+  .wheel-wrap {
+    position: relative;
+    width: min(78vw, 340px);
+    height: min(78vw, 340px);
+  }
+
+  .bulb-ring {
+    position: absolute;
+    inset: -18px;
+    border-radius: 50%;
+  }
+  .bulb {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    margin: -6px;
+    background: var(--gold);
+    box-shadow: 0 0 8px 2px var(--gold);
+    animation: bulbBlink 1s steps(1) infinite;
+  }
+  @keyframes bulbBlink {
+    0%, 49% { background: var(--gold); box-shadow: 0 0 10px 3px var(--gold); }
+    50%, 100% { background: #ff5f5f; box-shadow: 0 0 10px 3px #ff5f5f; }
+  }
+
+  .pointer {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-top: 28px solid #ffd23f;
+    filter: drop-shadow(0 0 6px #ffd23f);
+    z-index: 10;
+  }
+
+  .wheel-outer {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 6px solid #fff;
+    box-shadow:
+      0 0 0 4px #2a0057,
+      0 0 30px 4px rgba(255, 46, 136, 0.6),
+      inset 0 0 20px rgba(0,0,0,0.4);
+    overflow: hidden;
+  }
+
+  .wheel {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    transform: rotate(0deg);
+    will-change: transform;
+  }
+
+  .symbol {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    font-size: clamp(20px, 5.2vw, 26px);
+    line-height: 1;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+
+  .hub {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 22%;
+    height: 22%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff6c8, var(--gold) 55%, #b8860b 100%);
+    border: 3px solid #fff;
+    box-shadow: 0 0 16px rgba(255, 210, 63, 0.9), inset 0 0 8px rgba(0,0,0,0.3);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(18px, 4.5vw, 26px);
+    cursor: pointer;
+  }
+  .hub.disabled { cursor: default; }
+
+  .wheel-wrap.spin-anim .wheel {
+    transition: transform 5.2s cubic-bezier(0.15, 0.85, 0.15, 1);
+  }
+
+  /* ---------- result modal ---------- */
+  #result {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(18, 0, 43, 0.88);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    text-align: center;
+    padding: 24px;
+    overflow: hidden;
+  }
+  #result.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .result-card {
+    position: relative;
+    z-index: 2;
+    background: radial-gradient(circle at 50% 20%, #4b0a8f, #24004f 75%);
+    border: 3px solid var(--gold);
+    border-radius: 24px;
+    padding: 40px 28px;
+    box-shadow: 0 0 40px rgba(255, 210, 63, 0.6);
+    transform: scale(0.7);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  #result.show .result-card { transform: scale(1); }
+  .result-emoji {
+    font-size: clamp(50px, 15vw, 80px);
+    display: block;
+    margin-bottom: 10px;
+  }
+  .result-text {
+    font-size: clamp(24px, 7vw, 36px);
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 0 10px var(--pink), 0 0 24px var(--purple);
+    margin-bottom: 22px;
+  }
+  .again-btn {
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    border: none;
+    color: #fff;
+    font-weight: 800;
+    font-size: 16px;
+    padding: 14px 30px;
+    border-radius: 40px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(255, 46, 136, 0.5);
+  }
+  .again-btn:active { transform: scale(0.96); }
+
+  .confetti {
+    position: absolute;
+    top: -10%;
+    width: 8px;
+    height: 14px;
+    opacity: 0.9;
+    z-index: 1;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(120vh) rotate(600deg); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="rays"></div>
+
+<div id="intro">
+  <h1>🎪 Wat ben jij vandaag? 🎪</h1>
+  <p>✨ tik om het te ontdekken ✨</p>
+</div>
+
+<div id="stage">
+  <div class="title">🎡 Rad van Fortuin 🎡</div>
+  <div class="hint" id="hint">tik op het rad!</div>
+
+  <div class="wheel-wrap" id="wheelWrap">
+    <div class="bulb-ring" id="bulbRing"></div>
+    <div class="pointer"></div>
+    <div class="wheel-outer">
+      <div class="wheel" id="wheel"></div>
+    </div>
+    <div class="hub" id="hub">🎯</div>
+  </div>
+</div>
+
+<div id="result">
+  <div class="result-card">
+    <span class="result-emoji" id="resultEmoji">🌟</span>
+    <div class="result-text" id="resultText">Een toppertje!</div>
+    <button class="again-btn" id="againBtn">Nog een keer! 🎡</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const OPTIONS = [
+    { text: "Een toppertje!", emoji: "👑", color: "#ffd23f" },
+    { text: "Een boefje!", emoji: "😈", color: "#ff2e88" },
+    { text: "Een luie meid!", emoji: "😴", color: "#17d1ff" },
+    { text: "Een boze bitch!", emoji: "💥", color: "#b429f9" },
+  ];
+
+  const SEGMENTS = 24;
+  const SEG_ANGLE = 360 / SEGMENTS;
+  // segment i belongs to option i % 4 -> evenly spaced, 6x per option
+  const segOption = (i) => i % 4;
+
+  const wheel = document.getElementById("wheel");
+  const wheelWrap = document.getElementById("wheelWrap");
+  const hub = document.getElementById("hub");
+  const hint = document.getElementById("hint");
+  const bulbRing = document.getElementById("bulbRing");
+  const resultEl = document.getElementById("result");
+  const resultEmoji = document.getElementById("resultEmoji");
+  const resultText = document.getElementById("resultText");
+  const againBtn = document.getElementById("againBtn");
+  const intro = document.getElementById("intro");
+
+  // build conic-gradient background
+  let stops = [];
+  for (let i = 0; i < SEGMENTS; i++) {
+    const start = i * SEG_ANGLE;
+    const end = start + SEG_ANGLE;
+    const color = OPTIONS[segOption(i)].color;
+    stops.push(`${color} ${start}deg ${end}deg`);
+  }
+  wheel.style.background = `conic-gradient(from 0deg, ${stops.join(", ")})`;
+
+  // place symbols (left/top as % of the wheel, since % in translate()
+  // is relative to the element's own tiny size, not the wheel)
+  const radiusPct = 37; // % of wheel radius from center
+  for (let i = 0; i < SEGMENTS; i++) {
+    const center = i * SEG_ANGLE + SEG_ANGLE / 2;
+    const rad = (center * Math.PI) / 180;
+    const span = document.createElement("div");
+    span.className = "symbol";
+    span.textContent = OPTIONS[segOption(i)].emoji;
+    span.style.left = `${50 + radiusPct * Math.sin(rad)}%`;
+    span.style.top = `${50 - radiusPct * Math.cos(rad)}%`;
+    span.style.transform = "translate(-50%, -50%)";
+    wheel.appendChild(span);
+  }
+
+  // bulb ring
+  const BULBS = 28;
+  for (let i = 0; i < BULBS; i++) {
+    const angle = (360 / BULBS) * i;
+    const b = document.createElement("div");
+    b.className = "bulb";
+    b.style.transform = `rotate(${angle}deg) translate(0, -50%)`;
+    b.style.animationDelay = `${(i % 2) * 0.5}s`;
+    bulbRing.appendChild(b);
+  }
+  // simple radial positioning fix (bulbs sit on ring edge)
+  Array.from(bulbRing.children).forEach((b, i) => {
+    const angle = (360 / BULBS) * i * (Math.PI / 180);
+    const r = 50; // percent
+    b.style.top = `${50 - r * Math.cos(angle)}%`;
+    b.style.left = `${50 + r * Math.sin(angle)}%`;
+    b.style.transform = "";
+  });
+
+  // ---- audio (tiny synthesized fx, no assets needed) ----
+  let audioCtx;
+  function ctx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+  function beep(freq, time, dur, vol) {
+    const c = ctx();
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = "square";
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g);
+    g.connect(c.destination);
+    o.start(time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + dur);
+    o.stop(time + dur);
+  }
+  function playTick() {
+    try {
+      const c = ctx();
+      beep(900, c.currentTime, 0.04, 0.05);
+    } catch (e) {}
+  }
+  function playFanfare() {
+    try {
+      const c = ctx();
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((f, i) => beep(f, c.currentTime + i * 0.12, 0.18, 0.08));
+    } catch (e) {}
+  }
+
+  // ---- spin logic ----
+  let currentRotation = 0;
+  let spinning = false;
+  let tickInterval = null;
+
+  function startTicking() {
+    let delay = 60;
+    function tick() {
+      if (!spinning) return;
+      playTick();
+      delay = Math.min(delay * 1.09, 400);
+      tickInterval = setTimeout(tick, delay);
+    }
+    tick();
+  }
+  function stopTicking() {
+    clearTimeout(tickInterval);
+  }
+
+  function spawnConfetti() {
+    const colors = ["#ffd23f", "#ff2e88", "#17d1ff", "#b429f9", "#ffffff"];
+    for (let i = 0; i < 40; i++) {
+      const c = document.createElement("div");
+      c.className = "confetti";
+      c.style.left = Math.random() * 100 + "%";
+      c.style.background = colors[Math.floor(Math.random() * colors.length)];
+      c.style.animationDuration = 1.8 + Math.random() * 1.6 + "s";
+      c.style.animationDelay = Math.random() * 0.4 + "s";
+      resultEl.appendChild(c);
+      setTimeout(() => c.remove(), 4000);
+    }
+  }
+
+  function spin() {
+    if (spinning) return;
+    spinning = true;
+    hub.classList.add("disabled");
+    hint.classList.add("spinning-hide");
+    startTicking();
+
+    const targetIndex = Math.floor(Math.random() * SEGMENTS);
+    const jitter = (Math.random() - 0.5) * (SEG_ANGLE * 0.6);
+    const centerAngle = targetIndex * SEG_ANGLE + SEG_ANGLE / 2 + jitter;
+
+    const desiredMod = (360 - centerAngle + 360) % 360;
+    const currentMod = ((currentRotation % 360) + 360) % 360;
+    let delta = desiredMod - currentMod;
+    if (delta <= 0) delta += 360;
+
+    const extraSpins = 6;
+    currentRotation += extraSpins * 360 + delta;
+
+    wheelWrap.classList.add("spin-anim");
+    wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+    setTimeout(() => {
+      spinning = false;
+      stopTicking();
+      hub.classList.remove("disabled");
+      const chosen = OPTIONS[segOption(targetIndex)];
+      resultEmoji.textContent = chosen.emoji;
+      resultText.textContent = chosen.text;
+      resultEl.classList.add("show");
+      spawnConfetti();
+      playFanfare();
+    }, 5300);
+  }
+
+  hub.addEventListener("click", spin);
+  wheelWrap.addEventListener("click", (e) => {
+    if (e.target === hub) return;
+    spin();
+  });
+
+  againBtn.addEventListener("click", () => {
+    resultEl.classList.remove("show");
+    hint.classList.remove("spinning-hide");
+  });
+
+  function dismissIntro() {
+    intro.classList.add("hide");
+    setTimeout(() => intro.remove(), 700);
+    try { ctx(); } catch (e) {}
+  }
+  intro.addEventListener("click", dismissIntro);
+})();
+</script>
+
+</body>
+</html>
