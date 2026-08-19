@@ -843,7 +843,6 @@ function renderLitters(nowMs) {
     `;
     grid.appendChild(card);
 
-    if (s.level === "dirty")      maybeNotify(l.id, "dirty",     "🚽 Bak is vuil", `${l.name} is na 12 uur vuil. Verschonen wanneer het uitkomt.`);
     if (s.level === "emergency")  maybeNotify(l.id, "emergency", "🚨 NOOD: verschoon nu", `${l.name} is 24 uur oud en moet direct verschoond worden!`);
   });
 }

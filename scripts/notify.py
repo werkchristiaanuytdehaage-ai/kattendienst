@@ -177,9 +177,6 @@ def main():
             if hours >= LITTER_EMERGENCY_H:
                 due.append((f"{key}_emergency", cleaned, "🚨 NOOD: verschoon nu",
                             f"{nm} is 24 uur oud en moet direct verschoond worden!", key))
-            elif hours >= LITTER_DIRTY_H:
-                due.append((f"{key}_dirty", cleaned, "🚽 Bak is vuil",
-                            f"{nm} is na 12 uur vuil. Verschonen wanneer het uitkomt.", key))
 
     # ---- filter wat al gestuurd is voor deze toestand ----
     to_send = [d for d in due if flags.get(d[0]) != d[1]]
